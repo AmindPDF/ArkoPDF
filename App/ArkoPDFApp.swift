@@ -42,6 +42,19 @@ struct ArkoPDFApp: App {
                     .keyboardShortcut("z", modifiers: [.command, .shift])
                     .disabled(!vm.undoManager.canRedo)
             }
+
+            // 缩放（阅读）
+            CommandMenu("视图") {
+                Button("放大") { vm.zoomIn() }
+                    .keyboardShortcut("+", modifiers: .command)
+                Button("缩小") { vm.zoomOut() }
+                    .keyboardShortcut("-", modifiers: .command)
+                Divider()
+                Button("实际大小") { vm.actualSize() }
+                    .keyboardShortcut("0", modifiers: .command)
+                Button("适合宽度") { vm.fitWidth() }
+                    .keyboardShortcut("9", modifiers: .command)
+            }
         }
     }
 

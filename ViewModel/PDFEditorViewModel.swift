@@ -552,6 +552,14 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
     func zoomIn() { zoom = min(zoom * 1.25, 4.0) }
     func zoomOut() { zoom = max(zoom / 1.25, 0.25) }
 
+    /// 按倍率缩放（⌘+滚轮 / 捏合用），并夹紧到 [0.25, 4]。
+    func zoomBy(_ factor: Double) {
+        zoom = min(max(zoom * factor, 0.25), 4.0)
+    }
+
+    /// 实际大小（100%）。
+    func actualSize() { zoom = 1.0 }
+
     func fitWidth(viewportWidth: CGFloat? = nil) {
         let w = viewportWidth ?? self.viewportWidth
         guard let page = document?.page(at: currentPage), page.widthInPoints > 0 else { return }

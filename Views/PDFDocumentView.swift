@@ -310,6 +310,23 @@ final class PDFPageCanvasView: NSView {
     override func mouseDragged(with event: NSEvent) { route(.drag, event) }
     override func mouseUp(with event: NSEvent) { route(.up, event) }
 
+    // ⌘+滚轮：缩放（非 ⌘ 滚轮交给上层 ScrollView 滚动）
+    override func scrollWheel(with event: NSEvent) {
+        if event.modifierFlags.contains(.command) {
+            let delta = event.scrollingDeltaY
+            if delta != 0 {
+                viewModel?.zoomBy(exp(Double(delta) * 0.01))
+            }
+        } else {
+            super.scrollWheel(with: event)
+        }
+    }
+
+    // 触控板捏合：缩放
+    override func magnify(with event: NSEvent) {
+        viewModel?.zoomBy(Double(1 + event.magnification))
+    }
+
     private func route(_ phase: ToolPhase, _ event: NSEvent) {
         guard let vm = viewModel else { return }
         let p = convert(event.locationInWindow, from: nil)
