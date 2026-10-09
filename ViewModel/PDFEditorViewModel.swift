@@ -112,10 +112,10 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         undoManager.register(UndoItem(
             description: "添加\(handler.displayName)",
             undo: { ctx in
-                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.removeAnnotByHandler(annotHandler) }
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.removeAnnot(byHandler: annotHandler) }
             },
             redo: { ctx in
-                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.addAnnotByHandler(annotHandler, atIndex: annotIndex) }
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.addAnnot(byHandler: annotHandler, at: annotIndex) }
             }
         ))
 
@@ -157,10 +157,10 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         undoManager.register(UndoItem(
             description: "删除\(type.displayName)",
             undo: { ctx in
-                ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.addAnnotByHandler(annotHandler, atIndex: annotIndex) }
+                ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.addAnnot(byHandler: annotHandler, at: annotIndex) }
             },
             redo: { ctx in
-                ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.removeAnnotByHandler(annotHandler) }
+                ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.removeAnnot(byHandler: annotHandler) }
             }
         ))
 
