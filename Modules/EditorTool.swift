@@ -14,6 +14,7 @@ struct ToolMouseEvent {
     let pageIndex: Int
     let point: CGPoint
     let modifiers: NSEvent.ModifierFlags
+    let clickCount: Int
 }
 
 /// 当前文本选区（字符矩形为 PDF 用户坐标）。
@@ -22,6 +23,13 @@ struct TextSelection {
     let startCaret: Int
     let endCaret: Int
     let charBoxes: [CGRect]
+}
+
+/// 图形标注的拖拽草稿（用于画布预览）。
+struct DraftShape {
+    let pageIndex: Int
+    let type: ShapeType
+    let points: [CGPoint]
 }
 
 /// 工具依赖的宿主能力（由 PDFEditorViewModel 实现）。
@@ -35,6 +43,11 @@ protocol ToolContext: AnyObject {
     func setSelection(_ selection: TextSelection?)
     /// 由某个 AnnotHandler 把选中矩形落成标注，并失效该页缓存触发重绘。
     func applyMarkup(_ handler: AnnotHandler, lineBoxes: [CGRect], pageIndex: Int)
+
+    // 图形 / 便签标注
+    func addShapeAnnot(_ type: ShapeType, points: [CGPoint], pageIndex: Int)
+    func addNoteAnnot(at point: CGPoint, pageIndex: Int)
+    func setDraft(_ draft: DraftShape?)
 
     // 页面组织操作（PPO）
     func insertBlankPage(after index: Int)

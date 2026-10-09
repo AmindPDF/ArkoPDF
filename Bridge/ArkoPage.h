@@ -35,6 +35,19 @@ NS_ASSUME_NONNULL_BEGIN
                       color:(unsigned int)color
                     opacity:(float)opacity;
 
+// 图形标注（line/rect/ellipse/polygon/polyline/ink）：points 每个 NSValue 包一个 CGPoint（用户坐标）
+- (void)addShapeAnnotOfType:(NSInteger)annotType
+                     points:(NSArray<NSValue *> *)points
+                      color:(unsigned int)color
+                    opacity:(float)opacity
+                borderWidth:(int)borderWidth;
+
+// 便签（sticknote）
+- (void)addNoteAnnotAtRect:(CGRect)rect
+                  contents:(NSString *)contents
+                     color:(unsigned int)color
+                   opacity:(float)opacity;
+
 // 标注管理（枚举 / 删除 / 修改）
 @property (nonatomic, readonly) NSInteger annotCount;
 /// 返回 @{@"type":@(ANNOT_TYPE), @"color":@(COLOR_MAKERGB), @"opacity":@(float), @"rect":NSValue(CGRect)}。

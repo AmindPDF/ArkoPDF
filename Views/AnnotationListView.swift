@@ -37,12 +37,12 @@ private struct AnnotationRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: item.type.icon)
+            Image(systemName: item.typeIcon)
                 .foregroundColor(swatch(item.color))
                 .frame(width: 18)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.type.displayName)
+                Text(item.typeName)
                     .font(.caption)
                 Text(item.pageLabel)
                     .font(.caption2)

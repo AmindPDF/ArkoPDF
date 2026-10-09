@@ -21,3 +21,9 @@ final class StrikeoutTool: MarkupTextTool {
         super.init(handler: StrikeoutAnnotHandler(), id: "tool.strikeout", displayName: "删除线", icon: "strikethrough")
     }
 }
+
+final class SquigglyTool: MarkupTextTool {
+    init() {
+        super.init(handler: SquigglyAnnotHandler(), id: "tool.squiggly", displayName: "波浪线", icon: "scribble")
+    }
+}

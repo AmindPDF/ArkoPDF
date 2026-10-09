@@ -19,10 +19,13 @@ enum DisplayMode: String, CaseIterable, Identifiable {
 struct AnnotationItem: Identifiable {
     let pageIndex: Int
     let annotIndex: Int
-    let type: MarkupType
+    let type: Int          // ANNOT_TYPE 原始值
     let color: MarkupColor
     let opacity: Float
     let rect: CGRect
+
+    var typeName: String { AnnotKind.name(forType: type) }
+    var typeIcon: String { AnnotKind.icon(forType: type) }
 
     var id: String { "\(pageIndex)-\(annotIndex)" }
     var pageLabel: String { "第 \(pageIndex + 1) 页" }
@@ -61,6 +64,9 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
 
     /// 当前文档大纲（书签树，扁平列表）。
     @Published var outline: [OutlineItem] = []
+
+    /// 图形标注拖拽草稿（画布预览用）。
+    @Published var draft: DraftShape?
 
     /// 当前「定位」的标注（标注面板点击后跳转并高亮描边）。
     @Published var focusedAnnotationID: String?
@@ -132,7 +138,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
             }
         ))
 
-        annotEvents.send(AnnotEvent(kind: .added, pageIndex: pageIndex, annotType: handler.type))
+        annotEvents.send(AnnotEvent(kind: .added, pageIndex: pageIndex, annotType: handler.type.rawValue))
         refreshAnnotations()
         invalidateAllPages()
     }
@@ -148,10 +154,9 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
                       let typeNum = info["type"] as? NSNumber,
                       let colorNum = info["color"] as? NSNumber,
                       let opacityNum = info["opacity"] as? NSNumber,
-                      let rectValue = info["rect"] as? NSValue,
-                      let type = MarkupType(rawValue: typeNum.intValue) else { continue }
+                      let rectValue = info["rect"] as? NSValue else { continue }
                 let color = MarkupColor.from(sdkColor: colorNum.uint32Value)
-                items.append(AnnotationItem(pageIndex: p, annotIndex: a, type: type,
+                items.append(AnnotationItem(pageIndex: p, annotIndex: a, type: typeNum.intValue,
                                             color: color, opacity: opacityNum.floatValue,
                                             rect: rectValue.rectValue))
             }
@@ -168,7 +173,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         page.removeAnnot(at: annotIndex)
 
         undoManager.register(UndoItem(
-            description: "删除\(type.displayName)",
+            description: "删除\(item.typeName)",
             undo: { ctx in
                 ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.addAnnot(byHandler: annotHandler, at: annotIndex) }
             },
@@ -189,7 +194,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         page.setAnnotColor(color.sdkColor, at: item.annotIndex)
 
         undoManager.register(UndoItem(
-            description: "修改\(item.type.displayName)颜色",
+            description: "修改\(item.typeName)颜色",
             undo: { ctx in
                 ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.setAnnotColor(oldColor.sdkColor, at: item.annotIndex) }
             },
@@ -210,7 +215,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         page.setAnnotOpacity(opacity, at: item.annotIndex)
 
         undoManager.register(UndoItem(
-            description: "修改\(item.type.displayName)透明度",
+            description: "修改\(item.typeName)透明度",
             undo: { ctx in
                 ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.setAnnotOpacity(oldOpacity, at: item.annotIndex) }
             },
@@ -228,6 +233,59 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
     func focusAnnotation(_ item: AnnotationItem) {
         currentPage = item.pageIndex
         focusedAnnotationID = item.id
+    }
+
+    // MARK: - 图形 / 便签标注
+
+    func setDraft(_ draft: DraftShape?) {
+        self.draft = draft
+    }
+
+    func addShapeAnnot(_ type: ShapeType, points: [CGPoint], pageIndex: Int) {
+        guard let page = document?.page(at: pageIndex), points.count >= 2 else { return }
+        page.addShapeAnnot(ofType: type.rawValue,
+                           points: points.map { NSValue(point: $0) },
+                           color: markupColor.sdkColor,
+                           opacity: markupOpacity,
+                           borderWidth: 2)
+        let annotIndex = page.annotCount - 1
+        let annotHandler = page.annotHandler(at: annotIndex)
+
+        undoManager.register(UndoItem(
+            description: "添加\(type.displayName)",
+            undo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.removeAnnot(byHandler: annotHandler) }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.addAnnot(byHandler: annotHandler, at: annotIndex) }
+            }
+        ))
+
+        annotEvents.send(AnnotEvent(kind: .added, pageIndex: pageIndex, annotType: type.rawValue))
+        refreshAnnotations()
+        invalidateAllPages()
+    }
+
+    func addNoteAnnot(at point: CGPoint, pageIndex: Int) {
+        guard let page = document?.page(at: pageIndex) else { return }
+        let rect = CGRect(x: point.x, y: point.y - 20, width: 22, height: 22)
+        page.addNoteAnnot(atRect: rect, contents: "备注", color: markupColor.sdkColor, opacity: markupOpacity)
+        let annotIndex = page.annotCount - 1
+        let annotHandler = page.annotHandler(at: annotIndex)
+
+        undoManager.register(UndoItem(
+            description: "添加便签",
+            undo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.removeAnnot(byHandler: annotHandler) }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.addAnnot(byHandler: annotHandler, at: annotIndex) }
+            }
+        ))
+
+        annotEvents.send(AnnotEvent(kind: .added, pageIndex: pageIndex, annotType: 1))  // ANNOT_TYPE_TEXT
+        refreshAnnotations()
+        invalidateAllPages()
     }
 
     // MARK: - 大纲（书签树）
@@ -289,8 +347,8 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
 
     // MARK: - 事件路由
 
-    func route(_ phase: ToolPhase, pageIndex: Int, userPoint: CGPoint, modifiers: NSEvent.ModifierFlags) {
-        let event = ToolMouseEvent(pageIndex: pageIndex, point: userPoint, modifiers: modifiers)
+    func route(_ phase: ToolPhase, pageIndex: Int, userPoint: CGPoint, modifiers: NSEvent.ModifierFlags, clickCount: Int) {
+        let event = ToolMouseEvent(pageIndex: pageIndex, point: userPoint, modifiers: modifiers, clickCount: clickCount)
         activeModule?.route(phase, event, context: self)
     }
 

@@ -213,6 +213,68 @@
     free(points);
 }
 
+- (void)addShapeAnnotOfType:(NSInteger)annotType
+                     points:(NSArray<NSValue *> *)points
+                      color:(unsigned int)color
+                    opacity:(float)opacity
+                borderWidth:(int)borderWidth {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots) {
+        return;
+    }
+    NSUInteger n = points.count;
+    if (n < 2) {
+        return;
+    }
+    PDSDK_FloatPoint **pts = (PDSDK_FloatPoint **)malloc(sizeof(PDSDK_FloatPoint *) * n);
+    if (!pts) {
+        return;
+    }
+    for (NSUInteger i = 0; i < n; i++) {
+        CGPoint p = [points[i] pointValue];
+        pts[i] = new PDSDK_FloatPoint();
+        pts[i]->x = (float)p.x;
+        pts[i]->y = (float)p.y;
+    }
+    IPDF_Annot *annot = annots->AddAnnot((int)annotType);
+    if (annot) {
+        annot->SetFlags(ANNOT_FLAG_PRINT);
+        annot->SetColor(color);
+        annot->SetOpacity(opacity);
+        annot->SetBorderWidth(borderWidth);
+        annot->SetPoints(pts, (int)n, 0);
+    }
+    for (NSUInteger i = 0; i < n; i++) {
+        delete pts[i];
+    }
+    free(pts);
+}
+
+- (void)addNoteAnnotAtRect:(CGRect)rect
+                  contents:(NSString *)contents
+                     color:(unsigned int)color
+                   opacity:(float)opacity {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots) {
+        return;
+    }
+    IPDF_Annot *annot = annots->AddAnnot(ANNOT_TYPE_TEXT);
+    if (annot) {
+        annot->SetFlags(ANNOT_FLAG_PRINT);
+        annot->SetColor(color);
+        annot->SetOpacity(opacity);
+        PDSDK_FloatRect r;
+        r.left = (float)CGRectGetMinX(rect);
+        r.bottom = (float)CGRectGetMinY(rect);
+        r.right = (float)CGRectGetMaxX(rect);
+        r.top = (float)CGRectGetMaxY(rect);
+        annot->SetRect(&r);
+        if (contents.length > 0) {
+            annot->SetContents([contents UTF8String], 0);
+        }
+    }
+}
+
 #pragma mark - 标注管理
 
 - (NSInteger)annotCount {

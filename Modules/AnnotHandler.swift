@@ -31,6 +31,45 @@ enum MarkupType: Int {
     }
 }
 
+/// 图形标注类型（对应 SDK ANNOT_TYPE_*，line/rect/ellipse 用 2 点，polygon/polyline 用 n 点）。
+enum ShapeType: Int, CaseIterable, Identifiable {
+    case line = 4
+    case square = 5
+    case circle = 6
+    case polygon = 7
+    case polyline = 8
+    case ink = 9
+
+    var id: Int { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .line: return "直线"
+        case .square: return "矩形"
+        case .circle: return "椭圆"
+        case .polygon: return "多边形"
+        case .polyline: return "折线"
+        case .ink: return "画笔"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .line: return "line.diagonal"
+        case .square: return "square"
+        case .circle: return "circle"
+        case .polygon: return "pentagon"
+        case .polyline: return "scribble.variable"
+        case .ink: return "pencil.tip"
+        }
+    }
+
+    /// 拖拽型（line/square/circle 用 down→up 两点的工具）还是多点型（polygon/polyline）。
+    var isDragBased: Bool {
+        self == .line || self == .square || self == .circle
+    }
+}
+
 /// 标注变更事件（创建/修改/删除），通过 PassthroughSubject 广播给各模块/面板/视图。
 struct AnnotEvent {
     enum Kind {
@@ -38,7 +77,24 @@ struct AnnotEvent {
     }
     let kind: Kind
     let pageIndex: Int
-    let annotType: MarkupType
+    let annotType: Int  // ANNOT_TYPE 原始值
+}
+
+/// 由 ANNOT_TYPE 原始值取显示名/图标（覆盖文本标记、图形、便签等所有类型）。
+enum AnnotKind {
+    static func name(forType t: Int) -> String {
+        if let m = MarkupType(rawValue: t) { return m.displayName }
+        if let s = ShapeType(rawValue: t) { return s.displayName }
+        if t == 1 { return "便签" }  // ANNOT_TYPE_TEXT
+        return "标注"
+    }
+
+    static func icon(forType t: Int) -> String {
+        if let m = MarkupType(rawValue: t) { return m.icon }
+        if let s = ShapeType(rawValue: t) { return s.icon }
+        if t == 1 { return "note.text" }
+        return "square.dashed"
+    }
 }
 
 /// 标注颜色（原型 4 色）。
@@ -116,6 +172,19 @@ final class StrikeoutAnnotHandler: AnnotHandler {
     let id = "annot.strikeout"
     let displayName = "删除线"
     let type = MarkupType.strikeout
+
+    func apply(lineBoxes: [CGRect], on page: ArkoPage, color: UInt32, opacity: Float) {
+        page.addTextMarkup(ofType: type.rawValue,
+                           lineBoxes: lineBoxes.map { NSValue(rect: $0) },
+                           color: color,
+                           opacity: opacity)
+    }
+}
+
+final class SquigglyAnnotHandler: AnnotHandler {
+    let id = "annot.squiggly"
+    let displayName = "波浪线"
+    let type = MarkupType.squiggly
 
     func apply(lineBoxes: [CGRect], on page: ArkoPage, color: UInt32, opacity: Float) {
         page.addTextMarkup(ofType: type.rawValue,

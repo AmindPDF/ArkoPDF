@@ -190,6 +190,7 @@ final class PDFPageCanvasView: NSView {
         vm.$renderRevision.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$zoom.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$focusedAnnotationID.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
+        vm.$draft.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
     }
 
     private var zoom: CGFloat { CGFloat(viewModel?.zoom ?? 1.0) }
@@ -230,6 +231,11 @@ final class PDFPageCanvasView: NSView {
            focusItem.pageIndex == pageIndex {
             drawFocusedAnnotation(focusItem.rect, pageSize: size)
         }
+
+        // 图形标注拖拽草稿预览
+        if let draft = vm.draft, draft.pageIndex == pageIndex {
+            drawDraft(draft, pageSize: size)
+        }
     }
 
     private func drawFocusedAnnotation(_ rect: CGRect, pageSize: CGSize) {
@@ -238,6 +244,38 @@ final class PDFPageCanvasView: NSView {
         ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
         ctx.setLineWidth(2.0)
         ctx.stroke(viewRect)
+    }
+
+    private func drawDraft(_ draft: DraftShape, pageSize: CGSize) {
+        guard let ctx = NSGraphicsContext.current?.cgContext,
+              let mc = viewModel?.markupColor else { return }
+        let nsColor = NSColor(srgbRed: CGFloat(mc.rgb.r) / 255,
+                              green: CGFloat(mc.rgb.g) / 255,
+                              blue: CGFloat(mc.rgb.b) / 255,
+                              alpha: 1.0)
+        ctx.setStrokeColor(nsColor.cgColor)
+        ctx.setLineWidth(1.5)
+
+        let pts = draft.points.map { CGPoint(x: $0.x * zoom, y: (pageSize.height - $0.y) * zoom) }
+        guard pts.count >= 2 else { return }
+
+        let r = CGRect(x: min(pts[0].x, pts[1].x), y: min(pts[0].y, pts[1].y),
+                       width: abs(pts[0].x - pts[1].x), height: abs(pts[0].y - pts[1].y))
+        switch draft.type {
+        case .square:
+            ctx.setFillColor(nsColor.withAlphaComponent(0.15).cgColor)
+            ctx.fill(r)
+            ctx.stroke(r)
+        case .circle:
+            ctx.setFillColor(nsColor.withAlphaComponent(0.15).cgColor)
+            ctx.fillEllipse(in: r)
+            ctx.strokeEllipse(in: r)
+        default:  // line / polygon / polyline / ink
+            ctx.move(to: pts[0])
+            for p in pts.dropFirst() { ctx.addLine(to: p) }
+            if draft.type == .polygon { ctx.closePath() }
+            ctx.strokePath()
+        }
     }
 
     private func drawSelection(_ sel: TextSelection, pageSize: CGSize) {
@@ -276,6 +314,6 @@ final class PDFPageCanvasView: NSView {
         guard let vm = viewModel else { return }
         let p = convert(event.locationInWindow, from: nil)
         let user = viewToUser(p, pageSize: pageSize)
-        vm.route(phase, pageIndex: pageIndex, userPoint: user, modifiers: event.modifierFlags)
+        vm.route(phase, pageIndex: pageIndex, userPoint: user, modifiers: event.modifierFlags, clickCount: event.clickCount)
     }
 }
