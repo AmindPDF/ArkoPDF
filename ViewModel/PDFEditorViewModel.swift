@@ -15,6 +15,17 @@ enum DisplayMode: String, CaseIterable, Identifiable {
     var isDouble: Bool { self == .double || self == .doubleContinuous }
 }
 
+/// 标注面板里的一项（定位到某页的第几个标注）。
+struct AnnotationItem: Identifiable {
+    let pageIndex: Int
+    let annotIndex: Int
+    let type: MarkupType
+    let color: MarkupColor
+
+    var id: String { "\(pageIndex)-\(annotIndex)" }
+    var pageLabel: String { "第 \(pageIndex + 1) 页" }
+}
+
 final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
 
     // MARK: - 文档状态
@@ -32,6 +43,9 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
 
     /// 标注变更事件广播（创建/修改/删除），供各模块/工具/面板/视图订阅。
     let annotEvents = PassthroughSubject<AnnotEvent, Never>()
+
+    /// 当前文档所有标注（标注面板数据源）。
+    @Published var annotations: [AnnotationItem] = []
 
     // MARK: - 模块 / 工具
     let modules: [ModuleKind: EditorModule]
@@ -85,6 +99,43 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         handler.apply(lineBoxes: lineBoxes, on: page, color: markupColor.sdkColor, opacity: markupOpacity)
         // 广播标注变更事件（创建），供模块/工具/面板/视图订阅
         annotEvents.send(AnnotEvent(kind: .added, pageIndex: pageIndex, annotType: handler.type))
+        refreshAnnotations()
+        invalidateAllPages()
+    }
+
+    /// 重建标注面板数据源（遍历所有页的标注）。
+    func refreshAnnotations() {
+        guard let doc = document else { annotations = []; return }
+        var items: [AnnotationItem] = []
+        for p in 0..<doc.pageCount {
+            guard let page = doc.page(at: p) else { continue }
+            for a in 0..<page.annotCount {
+                guard let info = page.annotInfo(at: a),
+                      let typeNum = info["type"] as? NSNumber,
+                      let colorNum = info["color"] as? NSNumber,
+                      let type = MarkupType(rawValue: typeNum.intValue) else { continue }
+                let color = MarkupColor.from(sdkColor: colorNum.uint32Value)
+                items.append(AnnotationItem(pageIndex: p, annotIndex: a, type: type, color: color))
+            }
+        }
+        annotations = items
+    }
+
+    /// 删除某条标注。
+    func deleteAnnotation(_ item: AnnotationItem) {
+        guard let page = document?.page(at: item.pageIndex) else { return }
+        page.removeAnnot(at: item.annotIndex)
+        annotEvents.send(AnnotEvent(kind: .removed, pageIndex: item.pageIndex, annotType: item.type))
+        refreshAnnotations()
+        invalidateAllPages()
+    }
+
+    /// 修改某条标注的颜色。
+    func changeAnnotationColor(_ item: AnnotationItem, to color: MarkupColor) {
+        guard let page = document?.page(at: item.pageIndex) else { return }
+        page.setAnnotColor(color.sdkColor, at: item.annotIndex)
+        annotEvents.send(AnnotEvent(kind: .modified, pageIndex: item.pageIndex, annotType: item.type))
+        refreshAnnotations()
         invalidateAllPages()
     }
 
@@ -154,6 +205,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
                 currentPage = 0
                 zoom = 1.0
                 cache.removeAllObjects()
+                refreshAnnotations()
             }
         } catch {
             document = nil
@@ -177,6 +229,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         pageCount = 0
         currentPage = 0
         selection = nil
+        annotations = []
         cache.removeAllObjects()
     }
 
@@ -287,6 +340,7 @@ extension PDFEditorViewModel: ArkoDocumentPPODelegate {
     /// 操作后：刷新页数、失效渲染缓存（缩略图/文档视图通过 @Published 自动刷新）。
     func document(_ document: ArkoDocument, didChangePages operation: ArkoPPOOperation) {
         pageCount = document.pageCount
+        refreshAnnotations()  // 页索引已重排，重建标注列表
         invalidateAllPages()
     }
 }

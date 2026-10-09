@@ -11,6 +11,24 @@ enum MarkupType: Int {
     case underline = 11
     case squiggly  = 12
     case strikeout = 13
+
+    var displayName: String {
+        switch self {
+        case .highlight: return "高亮"
+        case .underline: return "下划线"
+        case .squiggly:  return "波浪线"
+        case .strikeout: return "删除线"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .highlight: return "highlighter"
+        case .underline: return "underline"
+        case .squiggly:  return "scribble"
+        case .strikeout: return "strikethrough"
+        }
+    }
 }
 
 /// 标注变更事件（创建/修改/删除），通过 PassthroughSubject 广播给各模块/面板/视图。
@@ -50,6 +68,12 @@ enum MarkupColor: String, CaseIterable, Identifiable {
     /// SDK COLOR_MAKERGB 格式（BGR 字节序）。
     var sdkColor: UInt32 {
         ArkoPage.makeRGBColor(withRed: rgb.r, green: rgb.g, blue: rgb.b)
+    }
+
+    /// 从 SDK COLOR_MAKERGB 反查颜色（匹配不到则回退黄色）。
+    static func from(sdkColor: UInt32) -> MarkupColor {
+        for c in allCases where c.sdkColor == sdkColor { return c }
+        return .yellow
     }
 }
 

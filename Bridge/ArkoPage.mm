@@ -213,6 +213,53 @@
     free(points);
 }
 
+#pragma mark - 标注管理
+
+- (NSInteger)annotCount {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    return annots ? annots->Count() : 0;
+}
+
+- (nullable NSDictionary *)annotInfoAtIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return nil;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    if (!annot) {
+        return nil;
+    }
+    unsigned int color = 0;
+    annot->GetColor(color);
+    return @{
+        @"type": @(annot->GetType()),
+        @"color": @(color),
+        @"opacity": @(annot->GetOpacity()),
+    };
+}
+
+- (void)removeAnnotAtIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    if (annot) {
+        annots->RemoveAnnot(annot);
+    }
+}
+
+- (void)setAnnotColor:(unsigned int)color atIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    if (annot) {
+        annot->SetColor(color);
+    }
+}
+
 #pragma mark - 保存
 
 - (void)generateContent {

@@ -1,21 +1,35 @@
 //  SidebarView.swift
-//  左侧栏：缩略图（大纲/书签/附件/图层延后）。
+//  左侧栏：页面（缩略图）/ 标注（列表面板）两个标签页。
 
 import SwiftUI
 
 struct SidebarView: View {
     @EnvironmentObject var vm: PDFEditorViewModel
+    @State private var tab: SidebarTab = .pages
+
+    private enum SidebarTab: String, CaseIterable, Identifiable {
+        case pages = "页面"
+        case annotations = "标注"
+        var id: String { rawValue }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("页面")
-                    .font(.headline)
-                Spacer()
+            Picker("", selection: $tab) {
+                ForEach(SidebarTab.allCases) { t in
+                    Text(t.rawValue).tag(t)
+                }
             }
-            .padding(10)
+            .pickerStyle(.segmented)
+            .padding(8)
+
             Divider()
-            ThumbnailView()
+
+            if tab == .pages {
+                ThumbnailView()
+            } else {
+                AnnotationListView()
+            }
         }
         .frame(minWidth: 130, idealWidth: 170, maxWidth: 230)
     }
