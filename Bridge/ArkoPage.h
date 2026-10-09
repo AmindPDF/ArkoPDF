@@ -96,7 +96,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (unsigned long long)clonePageObjectAtIndex:(NSInteger)index;
 + (void)releasePageObjectClone:(unsigned long long)clone NS_SWIFT_NAME(releasePageObjectClone(_:));
 /// 撤销删除/新建：把克隆对象（内部再次 Clone）按 zOrder 加入页。
-- (void)addPageObjectClone:(unsigned long long)clone atZOrder:(NSInteger)zOrder;
+- (void)addPageObjectClone:(unsigned long long)clone atZOrder:(NSInteger)zOrder
+    NS_SWIFT_NAME(addPageObjectClone(_:atZOrder:));
 /// 撤销移动/缩放/旋转：用 clone 覆盖当前对象状态。
 - (void)copyPageObjectAtIndex:(NSInteger)index fromClone:(unsigned long long)clone
     NS_SWIFT_NAME(copyPageObject(at:fromClone:));

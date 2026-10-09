@@ -65,7 +65,6 @@ extension PDFEditorViewModel {
 
     func insertText(_ text: String, pageIndex: Int) {
         guard !text.isEmpty,
-              let page = document?.page(at: pageIndex),
               let para = editingParagraph, editingPage == pageIndex,
               let sel = paragraphSelection else { return }
 
@@ -94,8 +93,7 @@ extension PDFEditorViewModel {
     }
 
     func deleteSelectionText(pageIndex: Int) {
-        guard let page = document?.page(at: pageIndex),
-              let para = editingParagraph, editingPage == pageIndex,
+        guard let para = editingParagraph, editingPage == pageIndex,
               let sel = paragraphSelection else { return }
         var handle: UInt64 = 0
         var desc = "删除文字"
