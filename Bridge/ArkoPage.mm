@@ -75,6 +75,9 @@
     if (pxW < 1) { pxW = 1; }
     if (pxH < 1) { pxH = 1; }
 
+    // 渲染前必须先解析页面内容，否则渲染出来是空白（对照 Windows 参考实现）
+    _page->ParseContent();
+
     IPDF_Matrix *ctm = PDSDK_NewMatrix();
     _page->GetDisplayMatrix(ctm, 0, 0, pxW, pxH, 0);
 
