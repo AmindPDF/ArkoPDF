@@ -64,8 +64,6 @@ private struct AnnotationRow: View {
                     .frame(width: 14, height: 14)
                     .overlay(Circle().stroke(Color.secondary.opacity(0.4), lineWidth: 1))
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
             .frame(width: 20)
 
             // 删除
@@ -75,7 +73,7 @@ private struct AnnotationRow: View {
                 Image(systemName: "trash")
                     .foregroundColor(.red)
             }
-            .buttonStyle(.borderlessButton)
+            .buttonStyle(.borderless)
             .help("删除标注")
         }
         .padding(8)
