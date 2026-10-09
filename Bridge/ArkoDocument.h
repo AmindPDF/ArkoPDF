@@ -40,6 +40,9 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 - (void)swapPage:(NSInteger)page1 with:(NSInteger)page2;
 - (NSInteger)pageRotationAtIndex:(NSInteger)index;
 - (void)setPageRotation:(NSInteger)rotateFlag atIndex:(NSInteger)index;
+// 页面句柄克隆/恢复（撤销删除页用：删除前克隆，撤销时插空白页 + 拷回句柄）
+- (nullable NSArray<NSNumber *> *)clonePageHandlersFrom:(NSInteger)start count:(NSInteger)count;
+- (void)restorePagesWithClones:(NSArray<NSNumber *> *)clones atIndex:(NSInteger)start;
 
 - (instancetype)init NS_UNAVAILABLE;
 

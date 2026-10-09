@@ -187,6 +187,58 @@
     [self notifyPPODidChange:ArkoPPOOperationRotatePage];
 }
 
+- (nullable NSArray<NSNumber *> *)clonePageHandlersFrom:(NSInteger)start count:(NSInteger)count {
+    if (!_doc || count <= 0) return nil;
+    NSMutableArray<NSNumber *> *clones = [NSMutableArray arrayWithCapacity:(NSUInteger)count];
+    for (NSInteger i = 0; i < count; i++) {
+        IPDF_Page *p = _doc->GetPage((int)(start + i));
+        PDF_PageHandler clone = NULL;
+        if (p) {
+            PDF_PageHandler h = p->GetHandler();
+            clone = h ? PDSDK_ClonePageHandler(h) : NULL;
+        }
+        [clones addObject:@((unsigned long long)(uintptr_t)clone)];
+    }
+    return clones;
+}
+
+- (void)restorePagesWithClones:(NSArray<NSNumber *> *)clones atIndex:(NSInteger)start {
+    if (!_doc || clones.count == 0) return;
+    int count = (int)clones.count;
+    [self notifyPPOWillChange:ArkoPPOOperationInsertBlank pages:@[@(start)]];
+    _pages = nil;
+
+    // 1. 建空白临时文档并插入占位页（删除页只是断开引用，页面数据仍在 PDF 里）
+    IPDF_Document *blank = PDSDK_NewDocument();
+    if (blank) {
+        if (blank->NewBlankDoc(1, 1, count) == 0) {
+            int *srcPages = (int *)malloc(sizeof(int) * (size_t)count);
+            for (int i = 0; i < count; i++) srcPages[i] = i;
+            IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
+            if (ppo) {
+                ppo->InsertPagesFrom((int)start, blank, srcPages, count);
+                ppo->Release();
+            }
+            free(srcPages);
+        }
+        PDSDK_ReleaseDocument(blank);
+    }
+
+    // 2. 把克隆的页面句柄拷回占位页，重新连接引用
+    for (int i = 0; i < count; i++) {
+        IPDF_Page *p = _doc->GetPage((int)(start + i));
+        if (!p) continue;
+        PDF_PageHandler clone = (PDF_PageHandler)(uintptr_t)clones[(NSUInteger)i].unsignedLongLongValue;
+        if (clone) {
+            // Copy 不消耗 clone，保留供后续多次撤销复用；clone 生命周期由上层撤销项管理
+            PDSDK_CopyPageHandler(p->GetHandler(), clone);
+        }
+    }
+
+    [self reloadPages];
+    [self notifyPPODidChange:ArkoPPOOperationInsertBlank];
+}
+
 - (void)close {
     if (_doc) {
         // 先释放各页（各自 Release 其 IPDF_Page / PageText / AnnotList），再关闭文档。

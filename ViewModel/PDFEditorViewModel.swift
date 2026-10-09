@@ -105,21 +105,17 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
     func applyMarkup(_ handler: AnnotHandler, lineBoxes: [CGRect], pageIndex: Int) {
         guard let page = document?.page(at: pageIndex) else { return }
         handler.apply(lineBoxes: lineBoxes, on: page, color: markupColor.sdkColor, opacity: markupOpacity)
-        let color = markupColor
-        let opacity = markupOpacity
+        let annotIndex = page.annotCount - 1  // AddAnnot 追加到末尾
+        let annotHandler = page.annotHandler(at: annotIndex)  // 记录句柄
 
-        // 撤销/重做：添加 → 撤销删末尾、重做重新添加
+        // 撤销/重做：按句柄删除/重插入
         undoManager.register(UndoItem(
             description: "添加\(handler.displayName)",
             undo: { ctx in
-                ctx.performUndoRedo { ctx.removeLastAnnotRaw(pageIndex: pageIndex) }
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.removeAnnotByHandler(annotHandler) }
             },
             redo: { ctx in
-                ctx.performUndoRedo {
-                    if let p = ctx.document?.page(at: pageIndex) {
-                        handler.apply(lineBoxes: lineBoxes, on: p, color: color.sdkColor, opacity: opacity)
-                    }
-                }
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.addAnnotByHandler(annotHandler, at: annotIndex) }
             }
         ))
 
@@ -153,27 +149,22 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
     /// 删除某条标注。
     func deleteAnnotation(_ item: AnnotationItem) {
         guard let page = document?.page(at: item.pageIndex) else { return }
-        let captured = item
-        page.removeAnnot(at: item.annotIndex)
+        let annotIndex = item.annotIndex
+        let annotHandler = page.annotHandler(at: annotIndex)  // 记录被删标注的句柄 + index
+        let type = item.type
+        page.removeAnnot(at: annotIndex)
 
         undoManager.register(UndoItem(
-            description: "删除\(item.type.displayName)",
+            description: "删除\(type.displayName)",
             undo: { ctx in
-                ctx.performUndoRedo {
-                    if let p = ctx.document?.page(at: captured.pageIndex) {
-                        p.addTextMarkup(ofType: captured.type.rawValue,
-                                        lineBoxes: [NSValue(rect: captured.rect)],
-                                        color: captured.color.sdkColor,
-                                        opacity: captured.opacity)
-                    }
-                }
+                ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.addAnnotByHandler(annotHandler, at: annotIndex) }
             },
             redo: { ctx in
-                ctx.performUndoRedo { ctx.removeLastAnnotRaw(pageIndex: captured.pageIndex) }
+                ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.removeAnnotByHandler(annotHandler) }
             }
         ))
 
-        annotEvents.send(AnnotEvent(kind: .removed, pageIndex: item.pageIndex, annotType: item.type))
+        annotEvents.send(AnnotEvent(kind: .removed, pageIndex: item.pageIndex, annotType: type))
         refreshAnnotations()
         invalidateAllPages()
     }
@@ -235,11 +226,6 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         invalidateAllPages()
     }
 
-    private func removeLastAnnotRaw(pageIndex: Int) {
-        guard let page = document?.page(at: pageIndex), page.annotCount > 0 else { return }
-        page.removeAnnot(at: page.annotCount - 1)
-    }
-
     func undo() {
         undoManager.undo(context: self)
         focusedAnnotationID = nil
@@ -297,8 +283,22 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
 
     func deletePage(at index: Int) {
         guard let doc = document, pageCount > 1 else { return } // 至少保留一页
-        // 页面删除的撤销需要「抽取该页→重插入」，涉及临时文档，当前暂不注册撤销。
+        // 删除前克隆页面句柄（页面数据仍在 PDF 里，删除只是断开引用）
+        let clones = doc.clonePageHandlers(from: index, count: 1)
         doc.deletePages(from: index, count: 1)
+
+        if let clones = clones {
+            undoManager.register(UndoItem(
+                description: "删除页面",
+                undo: { ctx in
+                    ctx.performUndoRedo { ctx.document?.restorePages(withClones: clones, at: index) }
+                },
+                redo: { ctx in
+                    ctx.performUndoRedo { ctx.document?.deletePages(from: index, count: 1) }
+                }
+            ))
+        }
+
         currentPage = min(currentPage, max(0, pageCount - 1))
     }
 

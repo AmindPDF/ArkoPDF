@@ -275,6 +275,34 @@
     }
 }
 
+- (unsigned long long)annotHandlerAtIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return 0;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    if (!annot) {
+        return 0;
+    }
+    return (unsigned long long)(uintptr_t)annot->GetAnnotHandler();
+}
+
+- (void)removeAnnotByHandler:(unsigned long long)handler {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || handler == 0) {
+        return;
+    }
+    annots->RemoveAnnotByAnnotHandler((ANNNOT_HANDLER)(uintptr_t)handler);
+}
+
+- (void)addAnnotByHandler:(unsigned long long)handler atIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || handler == 0) {
+        return;
+    }
+    annots->AddAnnotByHandler((int)index, (ANNNOT_HANDLER)(uintptr_t)handler);
+}
+
 #pragma mark - 保存
 
 - (void)generateContent {

@@ -43,6 +43,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setAnnotColor:(unsigned int)color atIndex:(NSInteger)index;
 - (void)setAnnotOpacity:(float)opacity atIndex:(NSInteger)index;
 
+// 标注句柄（撤销/重做用：void* 以 64 位整数传递，删除后可 AddAnnotByHandler 重插入）
+- (unsigned long long)annotHandlerAtIndex:(NSInteger)index;
+- (void)removeAnnotByHandler:(unsigned long long)handler;
+- (void)addAnnotByHandler:(unsigned long long)handler atIndex:(NSInteger)index;
+
 /// 保存前调用：重新序列化页内容（含新增标注）。
 - (void)generateContent;
 
