@@ -10,7 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface ArkoDocument : NSObject
 
 - (nullable instancetype)initWithURL:(NSURL *)url error:(NSError **)error;
-- (NSInteger)pageCount;
+@property (nonatomic, readonly) NSInteger pageCount;
 - (nullable ArkoPage *)pageAtIndex:(NSInteger)index;
 - (BOOL)saveToURL:(NSURL *)url error:(NSError **)error;
 - (void)close;
