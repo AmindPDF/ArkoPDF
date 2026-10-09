@@ -66,6 +66,10 @@ static BOOL WritePNG(CGImageRef img, NSString *path) {
 
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
+        // 无缓冲输出：崩溃时能看到最后跑到哪一步
+        setvbuf(stdout, NULL, _IONBF, 0);
+        setvbuf(stderr, NULL, _IONBF, 0);
+
         NSString *cwd = [NSFileManager defaultManager].currentDirectoryPath;
         NSError *err = nil;
         int failures = 0;
