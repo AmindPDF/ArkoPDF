@@ -1,0 +1,191 @@
+//  PDFEditorViewModel.swift
+//  单一状态源（ObservableObject），同时实现 ToolContext 供工具调用 SDK。
+
+import Foundation
+import AppKit
+import Combine
+
+enum DisplayMode: String, CaseIterable, Identifiable {
+    case single = "单页"
+    case continuous = "连续"
+    var id: String { rawValue }
+}
+
+final class PDFEditorViewModel: ObservableObject, ToolContext {
+
+    // MARK: - 文档状态
+    @Published var document: ArkoDocument?
+    @Published var currentPage: Int = 0
+    @Published var pageCount: Int = 0
+    @Published var zoom: Double = 1.0
+    @Published var displayMode: DisplayMode = .continuous
+    @Published var selection: TextSelection?
+    @Published var lastError: String?
+
+    // MARK: - 标注状态
+    @Published var markupColor: MarkupColor = .yellow
+    @Published var markupOpacity: Float = 0.8
+
+    // MARK: - 模块 / 工具
+    let modules: [ModuleKind: EditorModule]
+    @Published var activeModuleKind: ModuleKind = .reading
+    @Published var activeToolID: String = ""
+
+    /// 渲染版本号：标注落地后自增，触发画布重绘。
+    @Published var renderRevision: Int = 0
+
+    /// 视口宽度（用于「适合宽度」缩放）。
+    @Published var viewportWidth: CGFloat = 800
+
+    // MARK: - 渲染缓存
+    private let cache = NSCache<NSString, CGImage>()
+
+    init() {
+        var map: [ModuleKind: EditorModule] = [:]
+        let reading = ReadingModule()
+        let annotate = AnnotateModule()
+        let edit = EditModule()
+        let pages = PagesModule()
+        let protect = ProtectModule()
+        let convert = ConvertModule()
+        let tools = ToolsModule()
+        for m in [reading, annotate, edit, pages, protect, convert, tools] as [EditorModule] {
+            map[m.kind] = m
+        }
+        modules = map
+        activeModuleKind = .reading
+        activeToolID = reading.activeTool?.id ?? ""
+    }
+
+    var activeModule: EditorModule? { modules[activeModuleKind] }
+    var activeTool: EditorTool? { activeModule?.activeTool }
+
+    // MARK: - ToolContext
+
+    var currentPageIndex: Int { currentPage }
+
+    func page(at index: Int) -> ArkoPage? {
+        document?.page(at: index)
+    }
+
+    func setSelection(_ selection: TextSelection?) {
+        self.selection = selection
+    }
+
+    func applyMarkup(_ handler: AnnotHandler, lineBoxes: [CGRect], pageIndex: Int) {
+        guard let page = document?.page(at: pageIndex) else { return }
+        handler.apply(lineBoxes: lineBoxes, on: page, color: markupColor.sdkColor, opacity: markupOpacity)
+        invalidateAllPages()
+    }
+
+    // MARK: - 事件路由
+
+    func route(_ phase: ToolPhase, pageIndex: Int, userPoint: CGPoint, modifiers: NSEvent.ModifierFlags) {
+        let event = ToolMouseEvent(pageIndex: pageIndex, point: userPoint, modifiers: modifiers)
+        activeModule?.route(phase, event, context: self)
+    }
+
+    // MARK: - 模块 / 工具切换
+
+    func selectModule(_ kind: ModuleKind) {
+        activeModuleKind = kind
+        activeToolID = modules[kind]?.activeTool?.id ?? ""
+        selection = nil
+    }
+
+    func selectTool(_ tool: EditorTool) {
+        activeModule?.activeTool = tool
+        activeToolID = tool.id
+        selection = nil
+    }
+
+    // MARK: - 文档操作
+
+    func open(url: URL) {
+        close()
+        do {
+            document = try ArkoDocument(url: url)
+            if let doc = document {
+                pageCount = doc.pageCount
+                currentPage = 0
+                zoom = 1.0
+                cache.removeAllObjects()
+            }
+        } catch {
+            document = nil
+            pageCount = 0
+            lastError = error.localizedDescription
+        }
+    }
+
+    func save(to url: URL) {
+        guard let doc = document else { return }
+        do {
+            _ = try doc.save(to: url)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func close() {
+        document?.close()
+        document = nil
+        pageCount = 0
+        currentPage = 0
+        selection = nil
+        cache.removeAllObjects()
+    }
+
+    // MARK: - 导航 / 缩放
+
+    func goToPreviousPage() {
+        guard currentPage > 0 else { return }
+        currentPage -= 1
+    }
+
+    func goToNextPage() {
+        guard currentPage < pageCount - 1 else { return }
+        currentPage += 1
+    }
+
+    func zoomIn() { zoom = min(zoom * 1.25, 4.0) }
+    func zoomOut() { zoom = max(zoom / 1.25, 0.25) }
+
+    func fitWidth(viewportWidth: CGFloat? = nil) {
+        let w = viewportWidth ?? self.viewportWidth
+        guard let page = document?.page(at: currentPage), page.widthInPoints > 0 else { return }
+        zoom = min(max(Double(w) / Double(page.widthInPoints), 0.1), 8.0)
+    }
+
+    func setViewportWidth(_ width: CGFloat) {
+        viewportWidth = width
+    }
+
+    // MARK: - 渲染
+
+    func pageSizeInPoints(at index: Int) -> CGSize {
+        guard let p = document?.page(at: index) else { return .zero }
+        return CGSize(width: p.widthInPoints, height: p.heightInPoints)
+    }
+
+    /// 渲染一页并缓存（同步；后续可改后台队列 + IPDF_ProgressiveRenderer）。
+    func image(forPage index: Int, zoom: Double) -> CGImage? {
+        let screenScale = NSScreen.main?.backingScaleFactor ?? 2.0
+        let renderScale = zoom * Double(screenScale)
+        let key = "\(index)@\(zoom)" as NSString
+        if let cached = cache.object(forKey: key) {
+            return cached
+        }
+        guard let page = document?.page(at: index),
+              let cg = page.renderImage(atScale: CGFloat(renderScale)) else {
+            return nil
+        }
+        cache.setObject(cg, forKey: key)
+        return cg
+    }
+
+    private func invalidateAllPages() {
+        cache.removeAllObjects()
+        renderRevision += 1
+    }
+}

@@ -1,0 +1,9 @@
+# XcodeGen 生成的项目文件（提交前在 Mac 上生成，别提交）
+ArkoPDF.xcodeproj/
+
+# Xcode 派生数据 / 本地构建产物
+build/Build/
+DerivedData/
+
+# 系统文件
+.DS_Store

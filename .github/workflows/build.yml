@@ -1,0 +1,38 @@
+name: Build ArkoPDF
+
+# push 到任意分支、或手动触发时构建
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (macOS)
+    runs-on: macos-14   # Xcode 15 / macOS 14 SDK（保留 Carbon 头）
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build ArkoPDF
+        run: |
+          xcodebuild \
+            -scheme ArkoPDF \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath ./build \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet \
+            build
+
+      - name: Upload ArkoPDF.app
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArkoPDF.app
+          path: ./build/Build/Products/Release/ArkoPDF.app
+          if-no-files-found: error
