@@ -4,6 +4,7 @@
 #import "ArkoPage.h"
 #include "ipdf_base.h"
 #include "ipdf_document.h"
+#include "ipdf_page.h"
 #include "ipdf_pageprocess.h"
 
 @implementation ArkoDocument {
