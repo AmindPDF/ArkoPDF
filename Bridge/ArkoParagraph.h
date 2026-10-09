@@ -34,9 +34,9 @@ typedef NS_ENUM(NSInteger, ArkoParaUndoType) {
 @property (nonatomic, readonly) unsigned long long paragraphHandle;
 
 // ---- 命中 / 选区 ----
-- (NSInteger)caretCount;
+@property (nonatomic, readonly) NSInteger caretCount;
 - (NSInteger)caretAtPointX:(CGFloat)x y:(CGFloat)y;                    // <0 表示未命中
-- (NSInteger)currentCaret;
+@property (nonatomic, readonly) NSInteger currentCaret;
 - (void)currentCaretRange:(NSInteger *)start end:(NSInteger *)end;
 - (nullable NSString *)textFromCaret:(NSInteger)start toCaret:(NSInteger)end; // UTF-8
 - (NSArray<NSValue *> *)selBoxesFromCaret:(NSInteger)start toCaret:(NSInteger)end; // NSValue(CGRect)
@@ -58,10 +58,10 @@ typedef NS_ENUM(NSInteger, ArkoParaUndoType) {
 // ---- 排版格式（返回撤销项句柄）----
 - (unsigned long long)setTextColor:(unsigned int)argb fromCaret:(NSInteger)start toCaret:(NSInteger)end;
 - (unsigned long long)setFontSize:(float)size fromCaret:(NSInteger)start toCaret:(NSInteger)end;
-- (unsigned long long)setBoldFromCaret:(NSInteger)start toCaret:(NSInteger)end;
-- (unsigned long long)setItalicFromCaret:(NSInteger)start toCaret:(NSInteger)end;
-- (unsigned long long)setUnderlineFromCaret:(NSInteger)start toCaret:(NSInteger)end;
-- (unsigned long long)setStrikeoutFromCaret:(NSInteger)start toCaret:(NSInteger)end;
+- (unsigned long long)setBoldFromCaret:(NSInteger)start toCaret:(NSInteger)end NS_SWIFT_NAME(setBold(fromCaret:toCaret:));
+- (unsigned long long)setItalicFromCaret:(NSInteger)start toCaret:(NSInteger)end NS_SWIFT_NAME(setItalic(fromCaret:toCaret:));
+- (unsigned long long)setUnderlineFromCaret:(NSInteger)start toCaret:(NSInteger)end NS_SWIFT_NAME(setUnderline(fromCaret:toCaret:));
+- (unsigned long long)setStrikeoutFromCaret:(NSInteger)start toCaret:(NSInteger)end NS_SWIFT_NAME(setStrikeout(fromCaret:toCaret:));
 - (unsigned long long)offsetByX:(float)dx y:(float)dy;
 
 // ---- 格式查询（供格式栏反映当前状态）----

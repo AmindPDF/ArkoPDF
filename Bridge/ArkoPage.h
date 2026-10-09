@@ -66,13 +66,14 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark - 段落编辑（IPDF_LogicalStructAnalyser）
 
 /// 段落数量（需先 ensureParagraphAnalyser）。
-- (NSInteger)paragraphCount;
+@property (nonatomic, readonly) NSInteger paragraphCount;
 /// 第 index 个段落（nil 表示越界/分析器不可用）。
 - (nullable ArkoParagraph *)paragraphAtIndex:(NSInteger)index;
 /// 命中测试：返回某点处的段落，nil 表示空白处。
 - (nullable ArkoParagraph *)paragraphAtPointX:(CGFloat)x y:(CGFloat)y;
 /// 在空白处新建段落（对应 Windows「添加文字/段落」），返回新段落。
-- (nullable ArkoParagraph *)newParagraphAtX:(CGFloat)x y:(CGFloat)y width:(CGFloat)width height:(CGFloat)height;
+- (nullable ArkoParagraph *)newParagraphAtX:(CGFloat)x y:(CGFloat)y width:(CGFloat)width height:(CGFloat)height
+    NS_SWIFT_NAME(newParagraph(atX:y:width:height:));
 /// 删除第 index 个段落（撤销新建段落用，不记录 SDK 撤销项）。
 - (void)deleteParagraphAtIndex:(NSInteger)index;
 /// 删除第 index 个段落并用 SDK 原生撤销项记录（删除段落的撤销/重做用）。
@@ -85,7 +86,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 #pragma mark - 页面对象（图片编辑 / 添加文字图片）
 
-- (NSInteger)pageObjectCount;
+@property (nonatomic, readonly) NSInteger pageObjectCount;
 /// 返回 @{@"type":@int, @"bbox":NSValue(CGRect), @"image":@BOOL}；nil 表示越界。
 - (nullable NSDictionary *)pageObjectInfoAtIndex:(NSInteger)index;
 /// 命中测试：返回某点最上层的页面对象下标，-1 表示无。
@@ -93,22 +94,27 @@ NS_ASSUME_NONNULL_BEGIN
 
 // 对象克隆（撤销/重做用；clone 句柄由 +releasePageObjectClone: 释放）
 - (unsigned long long)clonePageObjectAtIndex:(NSInteger)index;
-+ (void)releasePageObjectClone:(unsigned long long)clone;
++ (void)releasePageObjectClone:(unsigned long long)clone NS_SWIFT_NAME(releasePageObjectClone(_:));
 /// 撤销删除/新建：把克隆对象（内部再次 Clone）按 zOrder 加入页。
 - (void)addPageObjectClone:(unsigned long long)clone atZOrder:(NSInteger)zOrder;
 /// 撤销移动/缩放/旋转：用 clone 覆盖当前对象状态。
-- (void)copyPageObjectAtIndex:(NSInteger)index fromClone:(unsigned long long)clone;
-- (void)deletePageObjectAtIndex:(NSInteger)index;
+- (void)copyPageObjectAtIndex:(NSInteger)index fromClone:(unsigned long long)clone
+    NS_SWIFT_NAME(copyPageObject(at:fromClone:));
+- (void)deletePageObjectAtIndex:(NSInteger)index NS_SWIFT_NAME(deletePageObject(at:));
 
 // 图片编辑
-- (void)movePageObjectAtIndex:(NSInteger)index byX:(float)dx y:(float)dy;
-- (void)resizePageObjectAtIndex:(NSInteger)index toWidth:(float)width height:(float)height;
-- (void)rotatePageObjectAtIndex:(NSInteger)index byAngle:(float)radian;
-- (void)flipPageObjectAtIndex:(NSInteger)index horizontal:(BOOL)horizontal;
+- (void)movePageObjectAtIndex:(NSInteger)index byX:(float)dx y:(float)dy
+    NS_SWIFT_NAME(movePageObject(at:byX:y:));
+- (void)resizePageObjectAtIndex:(NSInteger)index toWidth:(float)width height:(float)height
+    NS_SWIFT_NAME(resizePageObject(at:toWidth:height:));
+- (void)rotatePageObjectAtIndex:(NSInteger)index byAngle:(float)radian
+    NS_SWIFT_NAME(rotatePageObject(at:byAngle:));
+- (void)flipPageObjectAtIndex:(NSInteger)index horizontal:(BOOL)horizontal
+    NS_SWIFT_NAME(flipPageObject(at:horizontal:));
 - (void)replaceImageAtIndex:(NSInteger)index withJpegPath:(NSString *)path;
 - (BOOL)exportImageAtIndex:(NSInteger)index toJpegPath:(NSString *)path;
-- (void)sendPageObjectToBackAtIndex:(NSInteger)index;
-- (void)bringPageObjectToFrontAtIndex:(NSInteger)index;
+- (void)sendPageObjectToBackAtIndex:(NSInteger)index NS_SWIFT_NAME(sendPageObjectToBack(at:));
+- (void)bringPageObjectToFrontAtIndex:(NSInteger)index NS_SWIFT_NAME(bringPageObjectToFront(at:));
 
 /// 添加 JPEG 图片到页，返回其 z-order 下标（-1 失败）。
 - (NSInteger)addImageWithJpegPath:(NSString *)path
@@ -124,7 +130,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// 链接到文档内某页（zoomMode 用 PDF_ZOOM_*，如 2 = 适合页面）。
 - (void)setLinkDestinationPage:(NSInteger)pageIndex
                       zoomMode:(NSInteger)zoomMode
-                forAnnotHandler:(unsigned long long)handler;
+                forAnnotHandler:(unsigned long long)handler
+    NS_SWIFT_NAME(setLinkDestinationPage(_:zoomMode:forAnnotHandler:));
 - (nullable NSString *)linkURIForAnnotHandler:(unsigned long long)handler;
 /// 返回 @{@"page":@int, @"zoomMode":@int}；非页内跳转返回 nil。
 - (nullable NSDictionary *)linkDestinationForAnnotHandler:(unsigned long long)handler;
