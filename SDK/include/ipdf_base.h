@@ -394,6 +394,11 @@ extern "C" IPDF_Signer* PDSDK_CreateSigner();
 //extern "C"  IPDF_AttachmentMgr* PDSDK_CreateAttachmentMgr(IPDF_Document* doc);
 //extern "C"  IPDF_FapiaoRecgnizer* PDSDK_CreateFapiaoRecg();
 extern  "C"  IPDF_PhotoBookCreator* PDSDK_CreatePhotoBookCreator();
+
+// 页面句柄克隆/拷贝（撤销删除页用，跨平台）
+extern "C" PDF_PageHandler PDSDK_ClonePageHandler(PDF_PageHandler page_handler);
+extern "C" void PDSDK_DestroyPageHandlerClone(PDF_PageHandler page_handler);
+extern "C" void PDSDK_CopyPageHandler(PDF_PageHandler dest_page_handler, PDF_PageHandler src);
 #endif
 
 /**
