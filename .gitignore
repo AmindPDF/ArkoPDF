@@ -5,5 +5,8 @@ ArkoPDF.xcodeproj/
 build/Build/
 DerivedData/
 
+# 冒烟测试产物
+smoke-artifact/
+
 # 系统文件
 .DS_Store

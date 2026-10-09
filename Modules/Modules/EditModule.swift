@@ -1,5 +1,6 @@
 //  EditModule.swift
-//  编辑模块：段落编辑 / 添加段落 / 图片修改（工具已占位，待接入 SDK 段落与图片编辑能力）。
+//  编辑模块：段落编辑 / 添加文字 / 添加图片 / 图片编辑 / 链接。
+//  对应 Windows 版 editcontent 模块（段落、图片）与 annots 的链接工具。
 
 import Foundation
 
@@ -10,10 +11,12 @@ final class EditModule: EditorModule {
     var activeTool: EditorTool?
 
     init() {
-        let para = StubTool(id: "tool.editParagraph", displayName: "段落编辑", icon: "text.justify")
-        let addPara = StubTool(id: "tool.addParagraph", displayName: "添加段落", icon: "text.append")
-        let image = StubTool(id: "tool.editImage", displayName: "图片修改", icon: "photo")
-        tools = [para, addPara, image]
+        let para = EditParagraphTool()
+        let addText = AddTextTool()
+        let addImage = AddImageTool()
+        let editImage = EditImageTool()
+        let link = LinkTool()
+        tools = [para, addText, addImage, editImage, link]
         activeTool = para
     }
 }

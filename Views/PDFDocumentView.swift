@@ -14,10 +14,18 @@ struct PDFDocumentView: View {
             if vm.document == nil {
                 placeholder
             } else {
-                PDFScrollView(viewModel: vm)
-                    .onAppear { vm.setViewportWidth(geo.size.width) }
-                    .onChange(of: geo.size.width) { w in vm.setViewportWidth(w) }
+                ZStack(alignment: .top) {
+                    PDFScrollView(viewModel: vm)
+                        .onAppear { vm.setViewportWidth(geo.size.width) }
+                        .onChange(of: geo.size.width) { w in vm.setViewportWidth(w) }
+                    // 编辑浮动栏（段落格式 / 图片编辑）
+                    EditBarView()
+                        .padding(.top, 8)
+                }
             }
+        }
+        .sheet(item: $vm.pendingLink) { draft in
+            LinkSettingSheet(draft: draft)
         }
     }
 
@@ -256,6 +264,9 @@ final class PDFPageCanvasView: NSView {
         vm.$renderRevision.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$focusedAnnotationID.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$draft.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
+        vm.$paragraphSelection.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
+        vm.$imageSelection.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
+        vm.$linkDraft.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
     }
 
     private var pageSize: CGSize {
@@ -299,6 +310,58 @@ final class PDFPageCanvasView: NSView {
         if let draft = vm.draft, draft.pageIndex == pageIndex {
             drawDraft(draft, pageSize: size)
         }
+
+        // 段落编辑选区高亮（蓝色）
+        if let ps = vm.paragraphSelection, ps.pageIndex == pageIndex, !ps.boxes.isEmpty {
+            drawParagraphSelection(ps.boxes, pageSize: size)
+        }
+
+        // 图片编辑选区（蓝色边框 + 四角手柄）
+        if let isel = vm.imageSelection, isel.pageIndex == pageIndex {
+            drawImageSelection(isel.bbox, pageSize: size)
+        }
+
+        // 链接拖拽草稿（虚线蓝色矩形）
+        if let ld = vm.linkDraft, ld.pageIndex == pageIndex {
+            drawLinkDraft(ld.rect, pageSize: size)
+        }
+    }
+
+    private func drawParagraphSelection(_ boxes: [CGRect], pageSize: CGSize) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let color = NSColor(srgbRed: 0.04, green: 0.52, blue: 1.0, alpha: 0.28)
+        ctx.setFillColor(color.cgColor)
+        for box in boxes {
+            ctx.fill(userToView(box, pageSize: pageSize))
+        }
+    }
+
+    private func drawImageSelection(_ bbox: CGRect, pageSize: CGSize) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let r = userToView(bbox, pageSize: pageSize)
+        let color = NSColor(srgbRed: 0.04, green: 0.52, blue: 1.0, alpha: 1.0)
+        ctx.setStrokeColor(color.cgColor)
+        ctx.setLineWidth(1.5)
+        ctx.stroke(r)
+        // 四角手柄
+        let hw: CGFloat = 6
+        let corners = [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY),
+                       CGPoint(x: r.minX, y: r.maxY), CGPoint(x: r.maxX, y: r.maxY)]
+        ctx.setFillColor(color.cgColor)
+        for c in corners {
+            ctx.fill(CGRect(x: c.x - hw / 2, y: c.y - hw / 2, width: hw, height: hw))
+        }
+    }
+
+    private func drawLinkDraft(_ rect: CGRect, pageSize: CGSize) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let r = userToView(rect, pageSize: pageSize)
+        let color = NSColor(srgbRed: 0.04, green: 0.52, blue: 1.0, alpha: 1.0)
+        ctx.setStrokeColor(color.cgColor)
+        ctx.setLineWidth(1.5)
+        ctx.setLineDash(phase: 0, lengths: [4, 3])
+        ctx.stroke(r)
+        ctx.setLineDash(phase: 0, lengths: [])
     }
 
     private func drawFocusedAnnotation(_ rect: CGRect, pageSize: CGSize) {

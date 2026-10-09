@@ -53,6 +53,9 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 - (void)renameBookmarkAtPath:(NSArray<NSNumber *> *)path title:(NSString *)title;
 - (void)removeBookmarkAtPath:(NSArray<NSNumber *> *)path;
 
+// 编辑：默认字体（添加文字/段落用，文档持有，勿 Release）。返回 0 表示不可用。
+- (unsigned long long)defaultFontHandle;
+
 - (instancetype)init NS_UNAVAILABLE;
 
 @end

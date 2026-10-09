@@ -41,7 +41,7 @@ struct OutlineItem: Identifiable {
     var id: String { path.map(String.init).joined(separator: "-") }
 }
 
-final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
+final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditContext {
 
     // MARK: - 文档状态
     @Published var document: ArkoDocument?
@@ -68,6 +68,16 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
     /// 图形标注拖拽草稿（画布预览用）。
     @Published var draft: DraftShape?
 
+    // MARK: - 编辑状态（段落 / 图片 / 链接）
+    /// 当前段落编辑选区（画布高亮 + 格式栏状态）。
+    @Published var paragraphSelection: ParagraphSelection?
+    /// 当前图片对象选区（画布高亮 + 图片编辑栏）。
+    @Published var imageSelection: ImageSelection?
+    /// 链接拖拽草稿矩形（画布预览）。
+    @Published var linkDraft: LinkDraft?
+    /// 待用户填写链接目标的拖拽结果（触发链接设置弹窗）。
+    @Published var pendingLink: LinkDraft?
+
     /// 当前「定位」的标注（标注面板点击后跳转并高亮描边）。
     @Published var focusedAnnotationID: String?
 
@@ -87,6 +97,11 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
 
     // MARK: - 渲染缓存
     private let cache = NSCache<NSString, CGImage>()
+
+    // 段落编辑的内部状态：当前正在编辑的段落对象 + 页码（不发布，仅编辑操作使用）。
+    // 注意：编辑方法在 PDFEditorViewModel+Edit.swift（扩展），故此处需 internal 可见。
+    var editingParagraph: ArkoParagraph?
+    var editingPage: Int?
 
     override init() {
         var map: [ModuleKind: EditorModule] = [:]
@@ -358,12 +373,20 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         activeModuleKind = kind
         activeToolID = modules[kind]?.activeTool?.id ?? ""
         selection = nil
+        clearParagraphEdit()
+        imageSelection = nil
+        linkDraft = nil
+        pendingLink = nil
     }
 
     func selectTool(_ tool: EditorTool) {
         activeModule?.activeTool = tool
         activeToolID = tool.id
         selection = nil
+        clearParagraphEdit()
+        imageSelection = nil
+        linkDraft = nil
+        pendingLink = nil
         tool.activated(context: self)
     }
 
@@ -492,6 +515,10 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         annotations = []
         outline = []
         focusedAnnotationID = nil
+        clearParagraphEdit()
+        imageSelection = nil
+        linkDraft = nil
+        pendingLink = nil
         undoManager.reset()
         cache.removeAllObjects()
     }
@@ -593,7 +620,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         return cg
     }
 
-    private func invalidateAllPages() {
+    func invalidateAllPages() {
         cache.removeAllObjects()
         renderRevision += 1
     }

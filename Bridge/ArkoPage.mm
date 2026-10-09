@@ -1,17 +1,22 @@
 //  ArkoPage.mm
 
 #import "ArkoPage.h"
+#import "ArkoParagraph.h"
 #include "ArkoBitmap.h"
 #include "ipdf_base.h"
 #include "ipdf_page.h"
 #include "ipdf_render.h"
 #include "ipdf_annots.h"
 #include "ipdf_pagetext.h"
+#include "ipdf_paragraph.h"
+#include "ipdf_pageobject.h"
+#include <string>
 
 @implementation ArkoPage {
     IPDF_Page *_page;
     IPDF_PageText *_pageText;
     IPDF_AnnotList *_annotList;
+    IPDF_LogicalStructAnalyser *_analyser;
     NSInteger _index;
 }
 
@@ -23,6 +28,7 @@
     _page = (IPDF_Page *)page;
     _pageText = NULL;
     _annotList = NULL;
+    _analyser = NULL;
     _index = index;
     return self;
 }
@@ -365,6 +371,334 @@
     annots->AddAnnotByHandler((int)index, (ANNNOT_HANDLER)(uintptr_t)handler);
 }
 
+#pragma mark - 段落编辑
+
+/// UTF-16(NSString) → wchar_t（macOS 上 wchar_t 为 32 位 UTF-32）。
+static std::wstring ArkoWStringFromNSString(NSString *s) {
+    std::wstring result;
+    NSUInteger len = s.length;
+    result.reserve(len);
+    for (NSUInteger i = 0; i < len; i++) {
+        unichar c = [s characterAtIndex:i];
+        if (CFStringIsSurrogateHighCharacter(c) && i + 1 < len) {
+            unichar lo = [s characterAtIndex:i + 1];
+            if (CFStringIsSurrogateLowCharacter(lo)) {
+                UTF32Char cp = CFStringGetLongCharacterForSurrogatePair(c, lo);
+                result.push_back((wchar_t)cp);
+                i++;
+                continue;
+            }
+        }
+        result.push_back((wchar_t)c);
+    }
+    return result;
+}
+
+- (IPDF_LogicalStructAnalyser *)sdkAnalyser {
+    if (!_analyser && _page) {
+        _page->ParseContent();
+        _analyser = PDSDK_CreateLogicalStructAnalyser();
+        if (_analyser) {
+            _analyser->DoAnalyse(_page);
+        }
+    }
+    return _analyser;
+}
+
+- (NSInteger)paragraphCount {
+    IPDF_LogicalStructAnalyser *a = [self sdkAnalyser];
+    return a ? (NSInteger)a->GetParagraphCount() : 0;
+}
+
+- (nullable ArkoParagraph *)paragraphAtIndex:(NSInteger)index {
+    IPDF_LogicalStructAnalyser *a = [self sdkAnalyser];
+    if (!a || index < 0 || index >= a->GetParagraphCount()) {
+        return nil;
+    }
+    IPDF_Paragraph *para = a->GetParagraph((int)index);
+    if (!para) return nil;
+    return [[ArkoParagraph alloc] initWithSDKParagraph:para];
+}
+
+- (nullable ArkoParagraph *)paragraphAtPointX:(CGFloat)x y:(CGFloat)y {
+    IPDF_LogicalStructAnalyser *a = [self sdkAnalyser];
+    if (!a) return nil;
+    PDSDK_FloatPoint p;
+    p.x = (float)x;
+    p.y = (float)y;
+    IPDF_Paragraph *para = a->GetParagraph(&p);
+    if (!para) return nil;
+    return [[ArkoParagraph alloc] initWithSDKParagraph:para];
+}
+
+- (nullable ArkoParagraph *)newParagraphAtX:(CGFloat)x y:(CGFloat)y width:(CGFloat)width height:(CGFloat)height {
+    IPDF_LogicalStructAnalyser *a = [self sdkAnalyser];
+    if (!a) return nil;
+    PDSDK_FloatPoint p;
+    p.x = (float)x;
+    p.y = (float)y;
+    IPDF_Paragraph *para = a->NewParagraphAt(&p, (float)width, (float)height);
+    if (!para) return nil;
+    return [[ArkoParagraph alloc] initWithSDKParagraph:para];
+}
+
+- (void)deleteParagraphAtIndex:(NSInteger)index {
+    IPDF_LogicalStructAnalyser *a = [self sdkAnalyser];
+    if (!a || index < 0 || index >= a->GetParagraphCount()) return;
+    IPDF_Paragraph *para = a->GetParagraph((int)index);
+    if (para) {
+        a->DeleteParagraph(para, NULL);
+    }
+}
+
+- (void)deleteParagraphAtIndex:(NSInteger)index undoItem:(unsigned long long)undoItem {
+    IPDF_LogicalStructAnalyser *a = [self sdkAnalyser];
+    if (!a || index < 0 || index >= a->GetParagraphCount()) return;
+    IPDF_Paragraph *para = a->GetParagraph((int)index);
+    if (para) {
+        a->DeleteParagraph(para, (IPDF_ParaUndoItem *)(uintptr_t)undoItem);
+    }
+}
+
+- (void)deleteParagraphByHandle:(unsigned long long)handle undoItem:(unsigned long long)undoItem {
+    IPDF_LogicalStructAnalyser *a = [self sdkAnalyser];
+    IPDF_Paragraph *para = (IPDF_Paragraph *)(uintptr_t)handle;
+    if (a && para) {
+        a->DeleteParagraph(para, (IPDF_ParaUndoItem *)(uintptr_t)undoItem);
+    }
+}
+
+- (void)paraUndoItem:(unsigned long long)handle {
+    IPDF_LogicalStructAnalyser *a = [self sdkAnalyser];
+    IPDF_ParaUndoItem *item = (IPDF_ParaUndoItem *)(uintptr_t)handle;
+    if (a && item) {
+        item->Undo(a);
+    }
+}
+
+- (void)paraRedoItem:(unsigned long long)handle {
+    IPDF_LogicalStructAnalyser *a = [self sdkAnalyser];
+    IPDF_ParaUndoItem *item = (IPDF_ParaUndoItem *)(uintptr_t)handle;
+    if (a && item) {
+        item->Redo(a);
+    }
+}
+
+#pragma mark - 页面对象
+
+- (IPDF_PageObject *)sdkPageObjectAtIndex:(NSInteger)index {
+    if (!_page) return NULL;
+    _page->ParseContent();
+    if (index < 0 || index >= _page->CountPageObjects()) return NULL;
+    return _page->GetPageObject((int)index);
+}
+
+- (NSInteger)pageObjectCount {
+    if (!_page) return 0;
+    _page->ParseContent();
+    return (NSInteger)_page->CountPageObjects();
+}
+
+- (nullable NSDictionary *)pageObjectInfoAtIndex:(NSInteger)index {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (!obj) return nil;
+    PDSDK_FloatRect fr;
+    obj->GetBBox(&fr);
+    CGRect rect = CGRectMake((CGFloat)fr.left, (CGFloat)fr.bottom,
+                             (CGFloat)(fr.right - fr.left), (CGFloat)(fr.top - fr.bottom));
+    BOOL isImage = obj->GetImageObject() != NULL;
+    return @{
+        @"type": @(obj->GetType()),
+        @"bbox": [NSValue valueWithRect:rect],
+        @"image": @(isImage),
+    };
+}
+
+- (NSInteger)pageObjectIndexAtPointX:(CGFloat)x y:(CGFloat)y {
+    if (!_page) return -1;
+    _page->ParseContent();
+    PDSDK_FloatPoint p;
+    p.x = (float)x;
+    p.y = (float)y;
+    IPDF_PageObject *obj = _page->GetPageObject(&p);
+    if (!obj) return -1;
+    return (NSInteger)_page->GetZOrder(obj);
+}
+
+- (unsigned long long)clonePageObjectAtIndex:(NSInteger)index {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (!obj) return 0;
+    IPDF_PageObject *clone = obj->Clone();
+    return (unsigned long long)(uintptr_t)clone;
+}
+
++ (void)releasePageObjectClone:(unsigned long long)clone {
+    IPDF_PageObject *obj = (IPDF_PageObject *)(uintptr_t)clone;
+    if (obj) obj->Release();
+}
+
+- (void)addPageObjectClone:(unsigned long long)clone atZOrder:(NSInteger)zOrder {
+    if (!_page || !clone) return;
+    IPDF_PageObject *src = (IPDF_PageObject *)(uintptr_t)clone;
+    IPDF_PageObject *newObj = src->Clone();
+    if (newObj) {
+        _page->AddPageObject((int)zOrder, newObj);
+    }
+}
+
+- (void)copyPageObjectAtIndex:(NSInteger)index fromClone:(unsigned long long)clone {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    IPDF_PageObject *src = (IPDF_PageObject *)(uintptr_t)clone;
+    if (obj && src) {
+        obj->Copy(src);
+    }
+}
+
+- (void)deletePageObjectAtIndex:(NSInteger)index {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (obj) {
+        _page->DeletePageObject(obj);
+    }
+}
+
+- (void)movePageObjectAtIndex:(NSInteger)index byX:(float)dx y:(float)dy {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (obj) obj->Offset(dx, dy);
+}
+
+- (void)resizePageObjectAtIndex:(NSInteger)index toWidth:(float)width height:(float)height {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (!obj) return;
+    PDSDK_FloatRect fr;
+    obj->GetBBox(&fr);
+    float oldW = fr.right - fr.left;
+    float oldH = fr.top - fr.bottom;
+    if (oldW <= 0 || oldH <= 0 || width <= 0 || height <= 0) return;
+
+    float sx = width / oldW;
+    float sy = height / oldH;
+    // 以左下角为锚点缩放：T(ax,ay) · S(sx,sy) · T(-ax,-ay)
+    float ax = fr.left, ay = fr.bottom;
+    IPDF_Matrix *m = PDSDK_NewMatrix();
+    m->Set(sx, 0, 0, sy, ax * (1 - sx), ay * (1 - sy));
+    obj->Transform(m);
+    m->Release();
+}
+
+- (void)rotatePageObjectAtIndex:(NSInteger)index byAngle:(float)radian {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (obj) obj->Rotate(radian);
+}
+
+- (void)flipPageObjectAtIndex:(NSInteger)index horizontal:(BOOL)horizontal {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (!obj) return;
+    IPDF_ImageObject *img = obj->GetImageObject();
+    if (!img) return;
+    if (horizontal) img->FlipImg_H();
+    else img->FlipImg_V();
+}
+
+- (void)replaceImageAtIndex:(NSInteger)index withJpegPath:(NSString *)path {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (!obj || !path) return;
+    std::wstring w = ArkoWStringFromNSString(path);
+    _page->ReplaceImage(obj, w.c_str());
+}
+
+- (BOOL)exportImageAtIndex:(NSInteger)index toJpegPath:(NSString *)path {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (!obj || !path) return NO;
+    IPDF_ImageObject *img = obj->GetImageObject();
+    if (!img) return NO;
+    return img->SaveImgAsJpegUTF8([path UTF8String]) > 0;
+}
+
+- (void)sendPageObjectToBackAtIndex:(NSInteger)index {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (obj) _page->SendObjToBack(obj);
+}
+
+- (void)bringPageObjectToFrontAtIndex:(NSInteger)index {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (obj) _page->BringObjToFront(obj);
+}
+
+- (NSInteger)addImageWithJpegPath:(NSString *)path
+                              atX:(float)x y:(float)y
+                            width:(float)width height:(float)height
+                            alpha:(float)alpha {
+    if (!_page || !path) return -1;
+    _page->ParseContent();
+    IPDF_PageObject *obj = _page->AddImage([path UTF8String], x, y, width, height, alpha, NULL);
+    if (!obj) return -1;
+    return (NSInteger)_page->GetZOrder(obj);
+}
+
+#pragma mark - 链接标注
+
+- (unsigned long long)addLinkAnnotInRect:(CGRect)rect {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots) return 0;
+    IPDF_Annot *annot = annots->AddAnnot(ANNOT_TYPE_LINK);
+    if (!annot) return 0;
+    annot->SetFlags(ANNOT_FLAG_PRINT);
+    PDSDK_FloatRect fr;
+    fr.left = (float)CGRectGetMinX(rect);
+    fr.bottom = (float)CGRectGetMinY(rect);
+    fr.right = (float)CGRectGetMaxX(rect);
+    fr.top = (float)CGRectGetMaxY(rect);
+    annot->SetRect(&fr);
+    annot->SetColor(COLOR_MAKERGB(0, 122, 255));  // 蓝色边框，便于识别
+    annot->SetBorderWidth(1);
+    annot->SetOpacity(0.9f);
+    annot->GenerateAppearance();
+    return (unsigned long long)(uintptr_t)annot->GetAnnotHandler();
+}
+
+- (void)setLinkURI:(NSString *)uri forAnnotHandler:(unsigned long long)handler {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || !handler) return;
+    IPDF_Annot *annot = annots->GetAnnotByAnnotHandler((ANNNOT_HANDLER)(uintptr_t)handler);
+    if (annot) {
+        annot->SetURI([uri UTF8String]);
+    }
+}
+
+- (void)setLinkDestinationPage:(NSInteger)pageIndex
+                      zoomMode:(NSInteger)zoomMode
+                forAnnotHandler:(unsigned long long)handler {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || !handler) return;
+    IPDF_Annot *annot = annots->GetAnnotByAnnotHandler((ANNNOT_HANDLER)(uintptr_t)handler);
+    if (annot) {
+        PDSDK_Dest dest;
+        dest.page_index = (int)pageIndex;
+        dest.zoom_mode = (int)zoomMode;
+        dest.dest[0] = dest.dest[1] = dest.dest[2] = dest.dest[3] = 0;
+        annot->SetDestination(dest);
+    }
+}
+
+- (nullable NSString *)linkURIForAnnotHandler:(unsigned long long)handler {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || !handler) return nil;
+    IPDF_Annot *annot = annots->GetAnnotByAnnotHandler((ANNNOT_HANDLER)(uintptr_t)handler);
+    if (!annot) return nil;
+    const char *uri = annot->GetURI();
+    return uri ? [NSString stringWithUTF8String:uri] : nil;
+}
+
+- (nullable NSDictionary *)linkDestinationForAnnotHandler:(unsigned long long)handler {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || !handler) return nil;
+    IPDF_Annot *annot = annots->GetAnnotByAnnotHandler((ANNNOT_HANDLER)(uintptr_t)handler);
+    if (!annot) return nil;
+    PDSDK_Dest dest;
+    if (!annot->GetDestination(dest)) return nil;
+    return @{@"page": @(dest.page_index), @"zoomMode": @(dest.zoom_mode)};
+}
+
 #pragma mark - 保存
 
 - (void)generateContent {
@@ -378,6 +712,7 @@
 }
 
 - (void)dealloc {
+    if (_analyser) { _analyser->Release(); _analyser = NULL; }
     if (_pageText) { _pageText->Release(); _pageText = NULL; }
     if (_annotList) { _annotList->Release(); _annotList = NULL; }
     if (_page) { _page->Release(); _page = NULL; }

@@ -5,6 +5,8 @@
 #import <Foundation/Foundation.h>
 #import <CoreGraphics/CoreGraphics.h>
 
+@class ArkoParagraph;
+
 NS_ASSUME_NONNULL_BEGIN
 
 @interface ArkoPage : NSObject
@@ -60,6 +62,72 @@ NS_ASSUME_NONNULL_BEGIN
 - (unsigned long long)annotHandlerAtIndex:(NSInteger)index;
 - (void)removeAnnotByHandler:(unsigned long long)handler;
 - (void)addAnnotByHandler:(unsigned long long)handler atIndex:(NSInteger)index;
+
+#pragma mark - 段落编辑（IPDF_LogicalStructAnalyser）
+
+/// 段落数量（需先 ensureParagraphAnalyser）。
+- (NSInteger)paragraphCount;
+/// 第 index 个段落（nil 表示越界/分析器不可用）。
+- (nullable ArkoParagraph *)paragraphAtIndex:(NSInteger)index;
+/// 命中测试：返回某点处的段落，nil 表示空白处。
+- (nullable ArkoParagraph *)paragraphAtPointX:(CGFloat)x y:(CGFloat)y;
+/// 在空白处新建段落（对应 Windows「添加文字/段落」），返回新段落。
+- (nullable ArkoParagraph *)newParagraphAtX:(CGFloat)x y:(CGFloat)y width:(CGFloat)width height:(CGFloat)height;
+/// 删除第 index 个段落（撤销新建段落用，不记录 SDK 撤销项）。
+- (void)deleteParagraphAtIndex:(NSInteger)index;
+/// 删除第 index 个段落并用 SDK 原生撤销项记录（删除段落的撤销/重做用）。
+- (void)deleteParagraphAtIndex:(NSInteger)index undoItem:(unsigned long long)undoItem;
+/// 按段落句柄删除（handle 取 ArkoParagraph.paragraphHandle），并用 SDK 撤销项记录。
+- (void)deleteParagraphByHandle:(unsigned long long)handle undoItem:(unsigned long long)undoItem;
+/// 应用/回滚段落原生撤销项（handle 由 ArkoParagraph 编辑方法返回）。
+- (void)paraUndoItem:(unsigned long long)handle;
+- (void)paraRedoItem:(unsigned long long)handle;
+
+#pragma mark - 页面对象（图片编辑 / 添加文字图片）
+
+- (NSInteger)pageObjectCount;
+/// 返回 @{@"type":@int, @"bbox":NSValue(CGRect), @"image":@BOOL}；nil 表示越界。
+- (nullable NSDictionary *)pageObjectInfoAtIndex:(NSInteger)index;
+/// 命中测试：返回某点最上层的页面对象下标，-1 表示无。
+- (NSInteger)pageObjectIndexAtPointX:(CGFloat)x y:(CGFloat)y;
+
+// 对象克隆（撤销/重做用；clone 句柄由 +releasePageObjectClone: 释放）
+- (unsigned long long)clonePageObjectAtIndex:(NSInteger)index;
++ (void)releasePageObjectClone:(unsigned long long)clone;
+/// 撤销删除/新建：把克隆对象（内部再次 Clone）按 zOrder 加入页。
+- (void)addPageObjectClone:(unsigned long long)clone atZOrder:(NSInteger)zOrder;
+/// 撤销移动/缩放/旋转：用 clone 覆盖当前对象状态。
+- (void)copyPageObjectAtIndex:(NSInteger)index fromClone:(unsigned long long)clone;
+- (void)deletePageObjectAtIndex:(NSInteger)index;
+
+// 图片编辑
+- (void)movePageObjectAtIndex:(NSInteger)index byX:(float)dx y:(float)dy;
+- (void)resizePageObjectAtIndex:(NSInteger)index toWidth:(float)width height:(float)height;
+- (void)rotatePageObjectAtIndex:(NSInteger)index byAngle:(float)radian;
+- (void)flipPageObjectAtIndex:(NSInteger)index horizontal:(BOOL)horizontal;
+- (void)replaceImageAtIndex:(NSInteger)index withJpegPath:(NSString *)path;
+- (BOOL)exportImageAtIndex:(NSInteger)index toJpegPath:(NSString *)path;
+- (void)sendPageObjectToBackAtIndex:(NSInteger)index;
+- (void)bringPageObjectToFrontAtIndex:(NSInteger)index;
+
+/// 添加 JPEG 图片到页，返回其 z-order 下标（-1 失败）。
+- (NSInteger)addImageWithJpegPath:(NSString *)path
+                              atX:(float)x y:(float)y
+                            width:(float)width height:(float)height
+                            alpha:(float)alpha;
+
+#pragma mark - 链接标注（ANNOT_TYPE_LINK）
+
+/// 新建链接标注，返回标注句柄（0 失败）。rect 为 PDF 用户坐标。
+- (unsigned long long)addLinkAnnotInRect:(CGRect)rect;
+- (void)setLinkURI:(NSString *)uri forAnnotHandler:(unsigned long long)handler;
+/// 链接到文档内某页（zoomMode 用 PDF_ZOOM_*，如 2 = 适合页面）。
+- (void)setLinkDestinationPage:(NSInteger)pageIndex
+                      zoomMode:(NSInteger)zoomMode
+                forAnnotHandler:(unsigned long long)handler;
+- (nullable NSString *)linkURIForAnnotHandler:(unsigned long long)handler;
+/// 返回 @{@"page":@int, @"zoomMode":@int}；非页内跳转返回 nil。
+- (nullable NSDictionary *)linkDestinationForAnnotHandler:(unsigned long long)handler;
 
 /// 保存前调用：重新序列化页内容（含新增标注）。
 - (void)generateContent;

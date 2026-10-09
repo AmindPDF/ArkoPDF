@@ -2,6 +2,7 @@
 
 #import "ArkoDocument.h"
 #import "ArkoPage.h"
+#import <CoreText/CoreText.h>
 #include "ipdf_base.h"
 #include "ipdf_document.h"
 #include "ipdf_page.h"
@@ -16,6 +17,7 @@
 @implementation ArkoDocument {
     IPDF_Document *_doc;
     NSMutableArray<ArkoPage *> *_pages;
+    IPDF_Font *_defaultFont;
 }
 
 - (nullable instancetype)initWithURL:(NSURL *)url error:(NSError **)error {
@@ -99,6 +101,33 @@
         return NO;
     }
     return YES;
+}
+
+#pragma mark - 编辑：默认字体
+
+- (unsigned long long)defaultFontHandle {
+    if (!_doc) return 0;
+    if (_defaultFont) {
+        return (unsigned long long)(uintptr_t)_defaultFont;
+    }
+    // 优先系统中文字体（支持中文输入），回退拉丁字体。
+    struct { NSString *name; int charset; } candidates[] = {
+        {@"PingFang SC", PDSDK_FONT_GB2312_CHARSET},
+        {@"Heiti SC",    PDSDK_FONT_GB2312_CHARSET},
+        {@"Helvetica",   PDSDK_FONT_ANSI_CHARSET},
+    };
+    int n = (int)(sizeof(candidates) / sizeof(candidates[0]));
+    for (int i = 0; i < n; i++) {
+        CTFontRef ct = CTFontCreateWithName((__bridge CFStringRef)candidates[i].name, 12.0, NULL);
+        if (!ct) continue;
+        IPDF_Font *f = _doc->AddMacFont(ct, 0, 0, candidates[i].charset);
+        CFRelease(ct);
+        if (f) {
+            _defaultFont = f;
+            return (unsigned long long)(uintptr_t)f;
+        }
+    }
+    return 0;
 }
 
 #pragma mark - 页面组织（PPO）

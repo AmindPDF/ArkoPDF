@@ -5,3 +5,4 @@
 #import "Bridge/ArkoSDK.h"
 #import "Bridge/ArkoDocument.h"
 #import "Bridge/ArkoPage.h"
+#import "Bridge/ArkoParagraph.h"
