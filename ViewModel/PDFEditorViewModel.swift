@@ -269,7 +269,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
     func addNoteAnnot(at point: CGPoint, pageIndex: Int) {
         guard let page = document?.page(at: pageIndex) else { return }
         let rect = CGRect(x: point.x, y: point.y - 20, width: 22, height: 22)
-        page.addNoteAnnot(atRect: rect, contents: "备注", color: markupColor.sdkColor, opacity: markupOpacity)
+        page.addNoteAnnot(at: rect, contents: "备注", color: markupColor.sdkColor, opacity: markupOpacity)
         let annotIndex = page.annotCount - 1
         let annotHandler = page.annotHandler(at: annotIndex)
 
