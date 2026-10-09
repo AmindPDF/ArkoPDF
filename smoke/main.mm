@@ -16,7 +16,7 @@ static NSString *SmokeMinimalPDF(void) {
     [objs addObject:@"<< /Type /Catalog /Pages 2 0 R >>"];
     [objs addObject:@"<< /Type /Pages /Kids [3 0 R] /Count 1 >>"];
     [objs addObject:@"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>"];
-    NSString *stream = @"BT /F1 24 Tf 72 720 Td (Hello ArkoPDF) Tj ET";
+    NSString *stream = @"1 0 0 rg 72 72 100 100 re f\nBT /F1 24 Tf 72 720 Td (Hello ArkoPDF) Tj ET";
     [objs addObject:[NSString stringWithFormat:@"<< /Length %lu >>\nstream\n%@\nendstream", (unsigned long)stream.length, stream]];
     [objs addObject:@"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"];
 
@@ -110,6 +110,10 @@ int main(int argc, const char *argv[]) {
         BOOL hasContent = ImageHasDarkPixel(img);
         fprintf(stdout, "%s: page has content (non-blank) = %d\n", hasContent ? "PASS" : "FAIL", hasContent);
         if (!hasContent) failures++;
+
+        // 6b. 诊断：文本是否被解析（(72,720) 处应有 "Hello"）
+        NSInteger caret = [page caretAtUserPointX:72 y:720 tolerance:4];
+        fprintf(stdout, "INFO: text caret at (72,720) = %ld (%s)\n", (long)caret, caret >= 0 ? "text parsed" : "no text");
 
         // 7. 输出渲染截图
         NSString *pngPath = [cwd stringByAppendingPathComponent:@"smoke_page0.png"];
