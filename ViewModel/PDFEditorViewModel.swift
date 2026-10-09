@@ -295,6 +295,9 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
                 },
                 redo: { ctx in
                     ctx.performUndoRedo { ctx.document?.deletePages(from: index, count: 1) }
+                },
+                dispose: {
+                    ArkoDocument.destroyPageHandlerClones(clones)
                 }
             ))
         }

@@ -43,6 +43,8 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 // 页面句柄克隆/恢复（撤销删除页用：删除前克隆，撤销时插空白页 + 拷回句柄）
 - (nullable NSArray<NSNumber *> *)clonePageHandlersFrom:(NSInteger)start count:(NSInteger)count;
 - (void)restorePagesWithClones:(NSArray<NSNumber *> *)clones atIndex:(NSInteger)start;
+// 释放页面句柄克隆（撤销项被丢弃时调用）
++ (void)destroyPageHandlerClones:(NSArray<NSNumber *> *)clones;
 
 - (instancetype)init NS_UNAVAILABLE;
 

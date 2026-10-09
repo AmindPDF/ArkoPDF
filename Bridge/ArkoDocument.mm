@@ -239,6 +239,15 @@
     [self notifyPPODidChange:ArkoPPOOperationInsertBlank];
 }
 
++ (void)destroyPageHandlerClones:(NSArray<NSNumber *> *)clones {
+    for (NSNumber *n in clones) {
+        PDF_PageHandler clone = (PDF_PageHandler)(uintptr_t)n.unsignedLongLongValue;
+        if (clone) {
+            PDSDK_DestroyPageHandlerClone(clone);
+        }
+    }
+}
+
 - (void)close {
     if (_doc) {
         // 先释放各页（各自 Release 其 IPDF_Page / PageText / AnnotList），再关闭文档。
