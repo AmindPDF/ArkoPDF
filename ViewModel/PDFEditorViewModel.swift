@@ -7,8 +7,12 @@ import Combine
 
 enum DisplayMode: String, CaseIterable, Identifiable {
     case single = "单页"
-    case continuous = "连续"
+    case singleContinuous = "单页连续"
+    case double = "双页"
+    case doubleContinuous = "双页连续"
     var id: String { rawValue }
+
+    var isDouble: Bool { self == .double || self == .doubleContinuous }
 }
 
 final class PDFEditorViewModel: ObservableObject, ToolContext {
@@ -18,7 +22,7 @@ final class PDFEditorViewModel: ObservableObject, ToolContext {
     @Published var currentPage: Int = 0
     @Published var pageCount: Int = 0
     @Published var zoom: Double = 1.0
-    @Published var displayMode: DisplayMode = .continuous
+    @Published var displayMode: DisplayMode = .singleContinuous
     @Published var selection: TextSelection?
     @Published var lastError: String?
 
@@ -139,13 +143,54 @@ final class PDFEditorViewModel: ObservableObject, ToolContext {
     // MARK: - 导航 / 缩放
 
     func goToPreviousPage() {
-        guard currentPage > 0 else { return }
-        currentPage -= 1
+        currentPage = targetPage(forDelta: -1)
     }
 
     func goToNextPage() {
-        guard currentPage < pageCount - 1 else { return }
-        currentPage += 1
+        currentPage = targetPage(forDelta: 1)
+    }
+
+    /// 计算翻页后的目标页；双页模式按「跨页(spread)」步进。
+    private func targetPage(forDelta delta: Int) -> Int {
+        guard pageCount > 0 else { return 0 }
+        if displayMode.isDouble {
+            let spreadIdx = spreadIndex(forPage: currentPage)
+            return clamp(firstPage(ofSpread: spreadIdx + delta))
+        } else {
+            return clamp(currentPage + delta)
+        }
+    }
+
+    private func clamp(_ p: Int) -> Int {
+        max(0, min(p, pageCount - 1))
+    }
+
+    // MARK: 双页跨页(spread)辅助
+
+    /// 当前页所在跨页的下标：0 是封面单独跨页，1 是第 2/3 页，2 是第 4/5 页…
+    func spreadIndex(forPage p: Int) -> Int {
+        p == 0 ? 0 : (p + 1) / 2
+    }
+
+    /// 跨页下标对应的第一页（封面为 0，其余为 1,3,5…）
+    func firstPage(ofSpread s: Int) -> Int {
+        s <= 0 ? 0 : 2 * s - 1
+    }
+
+    /// 跨页数量（封面单独算 1，其余两两一组）
+    var spreadCount: Int {
+        pageCount == 0 ? 0 : 1 + pageCount / 2
+    }
+
+    /// 给定跨页下标，返回 (左页, 右页)。封面跨页左页为 nil。
+    func spread(forIndex s: Int) -> (left: Int?, right: Int?) {
+        guard s >= 0, s < spreadCount else { return (nil, nil) }
+        if s == 0 {
+            return (nil, 0)
+        }
+        let left = 2 * s - 1
+        let right = left + 1
+        return (left, right < pageCount ? right : nil)
     }
 
     func zoomIn() { zoom = min(zoom * 1.25, 4.0) }

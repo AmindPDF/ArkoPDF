@@ -1,5 +1,6 @@
 //  PDFDocumentView.swift
-//  文档主视图：单页 / 连续两种模式，页面画布（NSView）负责渲染、选区高亮、鼠标路由。
+//  文档主视图：单页 / 单页连续 / 双页 / 双页连续四种模式，
+//  页面画布（NSView）负责渲染、选区高亮、鼠标路由。
 
 import SwiftUI
 import AppKit
@@ -20,10 +21,13 @@ struct PDFDocumentView: View {
     private var content: some View {
         if vm.document == nil {
             placeholder
-        } else if vm.displayMode == .single {
-            SinglePageView()
         } else {
-            ContinuousView()
+            switch vm.displayMode {
+            case .single: SinglePageView()
+            case .singleContinuous: SingleContinuousView()
+            case .double: DoublePageView()
+            case .doubleContinuous: DoubleContinuousView()
+            }
         }
     }
 
@@ -60,9 +64,9 @@ private struct SinglePageView: View {
     }
 }
 
-// MARK: - 连续模式
+// MARK: - 单页连续模式
 
-private struct ContinuousView: View {
+private struct SingleContinuousView: View {
     @EnvironmentObject var vm: PDFEditorViewModel
 
     var body: some View {
@@ -76,6 +80,70 @@ private struct ContinuousView: View {
                 }
             }
             .padding(.vertical, 28)
+        }
+    }
+
+    private func pageW(_ i: Int) -> CGFloat { vm.pageSizeInPoints(at: i).width * CGFloat(vm.zoom) }
+    private func pageH(_ i: Int) -> CGFloat { vm.pageSizeInPoints(at: i).height * CGFloat(vm.zoom) }
+}
+
+// MARK: - 双页模式（单跨页）
+
+private struct DoublePageView: View {
+    @EnvironmentObject var vm: PDFEditorViewModel
+
+    var body: some View {
+        ScrollView([.horizontal, .vertical]) {
+            SpreadView(spreadIndex: vm.spreadIndex(forPage: vm.currentPage))
+                .padding(48)
+        }
+    }
+}
+
+// MARK: - 双页连续模式
+
+private struct DoubleContinuousView: View {
+    @EnvironmentObject var vm: PDFEditorViewModel
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 20) {
+                ForEach(0..<vm.spreadCount, id: \.self) { s in
+                    SpreadView(spreadIndex: s)
+                        .id("spread-\(s)")
+                        .padding(.horizontal, 48)
+                }
+            }
+            .padding(.vertical, 28)
+        }
+    }
+}
+
+// MARK: - 一个跨页（两页并排）
+
+private struct SpreadView: View {
+    @EnvironmentObject var vm: PDFEditorViewModel
+    let spreadIndex: Int
+
+    private var spread: (left: Int?, right: Int?) {
+        vm.spread(forIndex: spreadIndex)
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // 左页；封面跨页左页为空 → 留白占位
+            if let left = spread.left {
+                PDFPageCanvas(viewModel: vm, pageIndex: left)
+                    .frame(width: pageW(left), height: pageH(left))
+            } else {
+                Color.clear
+                    .frame(width: pageW(0), height: pageH(0))
+            }
+            // 右页
+            if let right = spread.right {
+                PDFPageCanvas(viewModel: vm, pageIndex: right)
+                    .frame(width: pageW(right), height: pageH(right))
+            }
         }
     }
 

@@ -54,7 +54,7 @@ struct ToolbarView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .frame(width: 120)
+            .frame(width: 230)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
