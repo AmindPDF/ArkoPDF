@@ -112,23 +112,19 @@ final class PDFEditorViewModel: ObservableObject, ToolContext {
         let w = size.width > 0 ? size.width : 612
         let h = size.height > 0 ? size.height : 792
         doc.insertBlankPage(at: index + 1, width: w, height: h)
-        pageCount = doc.pageCount
+        // pageCount/缓存已在 didChangePages 回调里刷新；这里跟随插入的新页
         currentPage = min(index + 1, max(0, pageCount - 1))
-        invalidateAllPages()
     }
 
     func deletePage(at index: Int) {
         guard let doc = document, pageCount > 1 else { return } // 至少保留一页
         doc.deletePages(from: index, count: 1)
-        pageCount = doc.pageCount
         currentPage = min(currentPage, max(0, pageCount - 1))
-        invalidateAllPages()
     }
 
     func rotatePageClockwise90(at index: Int) {
         guard let doc = document else { return }
         doc.rotatePageClockwise90(index)
-        invalidateAllPages()
     }
 
     /// 上移/下移一页（offset 为 -1 或 +1，内部用 SwapPages 实现）。
@@ -138,7 +134,6 @@ final class PDFEditorViewModel: ObservableObject, ToolContext {
         guard target >= 0, target < pageCount else { return }
         doc.swapPage(index, with: target)
         currentPage = target
-        invalidateAllPages()
     }
 
     // MARK: - 文档操作
@@ -148,6 +143,7 @@ final class PDFEditorViewModel: ObservableObject, ToolContext {
         do {
             document = try ArkoDocument(url: url)
             if let doc = document {
+                doc.ppoDelegate = self
                 pageCount = doc.pageCount
                 currentPage = 0
                 zoom = 1.0
@@ -270,5 +266,21 @@ final class PDFEditorViewModel: ObservableObject, ToolContext {
     private func invalidateAllPages() {
         cache.removeAllObjects()
         renderRevision += 1
+    }
+}
+
+// MARK: - PPO 操作通知（OnBefore / OnAfter）
+
+extension PDFEditorViewModel: ArkoDocumentPPODelegate {
+    /// 操作前：清空选区、重置工具拖拽状态，避免引用将被释放/重排的页。
+    func document(_ document: ArkoDocument, willChangePages operation: ArkoPPOOperation, pages: [NSNumber]) {
+        selection = nil
+        activeTool?.reset()
+    }
+
+    /// 操作后：刷新页数、失效渲染缓存（缩略图/文档视图通过 @Published 自动刷新）。
+    func document(_ document: ArkoDocument, didChangePages operation: ArkoPPOOperation) {
+        pageCount = document.pageCount
+        invalidateAllPages()
     }
 }

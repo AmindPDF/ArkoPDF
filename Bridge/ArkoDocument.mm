@@ -111,8 +111,21 @@
     }
 }
 
+- (void)notifyPPOWillChange:(ArkoPPOOperation)op pages:(NSArray<NSNumber *> *)pages {
+    if ([self.ppoDelegate respondsToSelector:@selector(document:willChangePages:pages:)]) {
+        [self.ppoDelegate document:self willChangePages:op pages:pages];
+    }
+}
+
+- (void)notifyPPODidChange:(ArkoPPOOperation)op {
+    if ([self.ppoDelegate respondsToSelector:@selector(document:didChangePages:)]) {
+        [self.ppoDelegate document:self didChangePages:op];
+    }
+}
+
 - (void)insertBlankPageAt:(NSInteger)index width:(CGFloat)width height:(CGFloat)height {
     if (!_doc) return;
+    [self notifyPPOWillChange:ArkoPPOOperationInsertBlank pages:@[@(index)]];
     _pages = nil;  // 变更前先释放旧页引用，避免悬空
     IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
     if (ppo) {
@@ -120,10 +133,16 @@
         ppo->Release();
     }
     [self reloadPages];
+    [self notifyPPODidChange:ArkoPPOOperationInsertBlank];
 }
 
 - (void)deletePagesFrom:(NSInteger)start count:(NSInteger)count {
     if (!_doc || count <= 0) return;
+    NSMutableArray<NSNumber *> *pages = [NSMutableArray arrayWithCapacity:(NSUInteger)count];
+    for (NSInteger i = 0; i < count; i++) {
+        [pages addObject:@(start + i)];
+    }
+    [self notifyPPOWillChange:ArkoPPOOperationDeletePages pages:pages];
     _pages = nil;
     IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
     if (ppo) {
@@ -131,10 +150,12 @@
         ppo->Release();
     }
     [self reloadPages];
+    [self notifyPPODidChange:ArkoPPOOperationDeletePages];
 }
 
 - (void)swapPage:(NSInteger)page1 with:(NSInteger)page2 {
     if (!_doc || page1 == page2) return;
+    [self notifyPPOWillChange:ArkoPPOOperationSwapPages pages:@[@(page1), @(page2)]];
     _pages = nil;
     IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
     if (ppo) {
@@ -142,6 +163,7 @@
         ppo->Release();
     }
     [self reloadPages];
+    [self notifyPPODidChange:ArkoPPOOperationSwapPages];
 }
 
 - (void)rotatePageClockwise90:(NSInteger)index {
@@ -155,6 +177,7 @@
     }
     int newFlag = (current + 1) % 4;
 
+    [self notifyPPOWillChange:ArkoPPOOperationRotatePage pages:@[@(index)]];
     _pages = nil;
     IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
     if (ppo) {
@@ -162,6 +185,7 @@
         ppo->Release();
     }
     [self reloadPages];
+    [self notifyPPODidChange:ArkoPPOOperationRotatePage];
 }
 
 - (void)close {
