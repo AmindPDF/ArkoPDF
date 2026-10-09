@@ -101,6 +101,44 @@ final class PDFEditorViewModel: ObservableObject, ToolContext {
         activeModule?.activeTool = tool
         activeToolID = tool.id
         selection = nil
+        tool.activated(context: self)
+    }
+
+    // MARK: - 页面组织（PPO）
+
+    func insertBlankPage(after index: Int) {
+        guard let doc = document else { return }
+        let size = pageSizeInPoints(at: index)
+        let w = size.width > 0 ? size.width : 612
+        let h = size.height > 0 ? size.height : 792
+        doc.insertBlankPage(at: index + 1, width: w, height: h)
+        pageCount = doc.pageCount
+        currentPage = min(index + 1, max(0, pageCount - 1))
+        invalidateAllPages()
+    }
+
+    func deletePage(at index: Int) {
+        guard let doc = document, pageCount > 1 else { return } // 至少保留一页
+        doc.deletePages(from: index, count: 1)
+        pageCount = doc.pageCount
+        currentPage = min(currentPage, max(0, pageCount - 1))
+        invalidateAllPages()
+    }
+
+    func rotatePageClockwise90(at index: Int) {
+        guard let doc = document else { return }
+        doc.rotatePageClockwise90(index)
+        invalidateAllPages()
+    }
+
+    /// 上移/下移一页（offset 为 -1 或 +1，内部用 SwapPages 实现）。
+    func movePage(at index: Int, by offset: Int) {
+        guard let doc = document else { return }
+        let target = index + offset
+        guard target >= 0, target < pageCount else { return }
+        doc.swapPage(index, with: target)
+        currentPage = target
+        invalidateAllPages()
     }
 
     // MARK: - 文档操作

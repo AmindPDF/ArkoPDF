@@ -55,5 +55,16 @@ private struct ThumbnailCell: View {
                 .stroke(vm.currentPage == pageIndex ? Color.accentColor : Color.clear, lineWidth: 2)
         )
         .contentShape(Rectangle())
+        .contextMenu {
+            Button("插入空白页") { vm.insertBlankPage(after: pageIndex) }
+            Button("删除此页") { vm.deletePage(at: pageIndex) }
+                .disabled(vm.pageCount <= 1)
+            Button("顺时针旋转 90°") { vm.rotatePageClockwise90(at: pageIndex) }
+            Divider()
+            Button("上移") { vm.movePage(at: pageIndex, by: -1) }
+                .disabled(pageIndex == 0)
+            Button("下移") { vm.movePage(at: pageIndex, by: 1) }
+                .disabled(pageIndex == vm.pageCount - 1)
+        }
     }
 }

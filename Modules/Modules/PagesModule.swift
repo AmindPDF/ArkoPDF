@@ -1,5 +1,5 @@
 //  PagesModule.swift
-//  页面模块：页面组织 / 插入 / 删除 / 旋转（工具已占位）。
+//  页面模块：页面组织（模式）/ 插入 / 删除 / 旋转，通过 PPO 执行实际操作。
 
 import Foundation
 
@@ -10,10 +10,19 @@ final class PagesModule: EditorModule {
     var activeTool: EditorTool?
 
     init() {
+        // 页面组织 = 页面管理模式（拖拽重排延后；当前操作在缩略图右键菜单 + 下方工具）
         let organize = StubTool(id: "tool.pageOrganize", displayName: "页面组织", icon: "square.on.square")
-        let insert = StubTool(id: "tool.pageInsert", displayName: "插入页面", icon: "plus.square")
-        let remove = StubTool(id: "tool.pageDelete", displayName: "删除页面", icon: "trash")
-        let rotate = StubTool(id: "tool.pageRotate", displayName: "旋转页面", icon: "rotate.right")
+
+        let insert = ActionTool(id: "tool.pageInsert", displayName: "插入页面", icon: "plus.square") { context in
+            context.insertBlankPage(after: context.currentPageIndex)
+        }
+        let remove = ActionTool(id: "tool.pageDelete", displayName: "删除页面", icon: "trash") { context in
+            context.deletePage(at: context.currentPageIndex)
+        }
+        let rotate = ActionTool(id: "tool.pageRotate", displayName: "旋转页面", icon: "rotate.right") { context in
+            context.rotatePageClockwise90(at: context.currentPageIndex)
+        }
+
         tools = [organize, insert, remove, rotate]
         activeTool = organize
     }

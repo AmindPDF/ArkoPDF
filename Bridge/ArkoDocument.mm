@@ -4,6 +4,7 @@
 #import "ArkoPage.h"
 #include "ipdf_base.h"
 #include "ipdf_document.h"
+#include "ipdf_pageprocess.h"
 
 @implementation ArkoDocument {
     IPDF_Document *_doc;
@@ -91,6 +92,75 @@
         return NO;
     }
     return YES;
+}
+
+#pragma mark - 页面组织（PPO）
+
+- (void)reloadPages {
+    if (!_doc) {
+        _pages = nil;
+        return;
+    }
+    int n = _doc->GetPageCount();
+    _pages = [NSMutableArray arrayWithCapacity:(NSUInteger)n];
+    for (int i = 0; i < n; i++) {
+        IPDF_Page *page = _doc->GetPage(i);
+        ArkoPage *wrapper = [[ArkoPage alloc] initWithSDKPage:page index:i];
+        [_pages addObject:wrapper];
+    }
+}
+
+- (void)insertBlankPageAt:(NSInteger)index width:(CGFloat)width height:(CGFloat)height {
+    if (!_doc) return;
+    _pages = nil;  // 变更前先释放旧页引用，避免悬空
+    IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
+    if (ppo) {
+        ppo->InsertBlankAt((int)index, (float)width, (float)height);
+        ppo->Release();
+    }
+    [self reloadPages];
+}
+
+- (void)deletePagesFrom:(NSInteger)start count:(NSInteger)count {
+    if (!_doc || count <= 0) return;
+    _pages = nil;
+    IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
+    if (ppo) {
+        ppo->DeletePages((int)start, (int)count);
+        ppo->Release();
+    }
+    [self reloadPages];
+}
+
+- (void)swapPage:(NSInteger)page1 with:(NSInteger)page2 {
+    if (!_doc || page1 == page2) return;
+    _pages = nil;
+    IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
+    if (ppo) {
+        ppo->SwapPages((int)page1, (int)page2);
+        ppo->Release();
+    }
+    [self reloadPages];
+}
+
+- (void)rotatePageClockwise90:(NSInteger)index {
+    if (!_doc) return;
+    // 读取当前旋转（0/1/2/3），+1 为顺时针 90°
+    int current = 0;
+    IPDF_Page *p = _doc->GetPage((int)index);
+    if (p) {
+        current = p->GetRotate();
+        p->Release();
+    }
+    int newFlag = (current + 1) % 4;
+
+    _pages = nil;
+    IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
+    if (ppo) {
+        ppo->RotatePage((int)index, newFlag);
+        ppo->Release();
+    }
+    [self reloadPages];
 }
 
 - (void)close {

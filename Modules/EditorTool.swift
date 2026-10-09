@@ -35,6 +35,12 @@ protocol ToolContext: AnyObject {
     func setSelection(_ selection: TextSelection?)
     /// 由某个 AnnotHandler 把选中矩形落成标注，并失效该页缓存触发重绘。
     func applyMarkup(_ handler: AnnotHandler, lineBoxes: [CGRect], pageIndex: Int)
+
+    // 页面组织操作（PPO）
+    func insertBlankPage(after index: Int)
+    func deletePage(at index: Int)
+    func rotatePageClockwise90(at index: Int)
+    func movePage(at index: Int, by offset: Int)
 }
 
 /// 工具协议。对应 Windows 的 tool 层。
@@ -48,4 +54,11 @@ protocol EditorTool: AnyObject {
     func mouseDragged(_ event: ToolMouseEvent, context: ToolContext)
     func mouseUp(_ event: ToolMouseEvent, context: ToolContext)
     func reset()
+
+    /// 工具被选中时触发（动作型工具，如页面管理，用它执行一次性操作）。
+    func activated(context: ToolContext)
+}
+
+extension EditorTool {
+    func activated(context: ToolContext) {}
 }
