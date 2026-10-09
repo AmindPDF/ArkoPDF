@@ -145,6 +145,7 @@ int main(int argc, const char *argv[]) {
         if (size == 0) failures++;
 
         [doc close];
+        [ArkoSDK unload];
 
         fprintf(stdout, failures == 0 ? "SMOKE TEST PASSED\n" : "SMOKE TEST FAILED\n");
         return failures == 0 ? 0 : 1;
