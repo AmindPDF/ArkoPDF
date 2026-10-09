@@ -46,6 +46,13 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 // 释放页面句柄克隆（撤销项被丢弃时调用）
 + (void)destroyPageHandlerClones:(NSArray<NSNumber *> *)clones;
 
+// 大纲（书签树）
+/// 返回 @[@{@"title":NSString, @"level":@int, @"page":@int, @"path":NSArray<NSNumber*>}]（扁平、按树序）。
+- (NSArray<NSDictionary *> *)outlineItems;
+- (void)addBookmark:(NSString *)title underPath:(nullable NSArray<NSNumber *> *)path;
+- (void)renameBookmarkAtPath:(NSArray<NSNumber *> *)path title:(NSString *)title;
+- (void)removeBookmarkAtPath:(NSArray<NSNumber *> *)path;
+
 - (instancetype)init NS_UNAVAILABLE;
 
 @end

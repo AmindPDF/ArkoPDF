@@ -32,6 +32,16 @@ struct ArkoPDFApp: App {
                 Button("保存") { save() }
                     .keyboardShortcut("s", modifiers: .command)
             }
+
+            // 撤销/重做（自定义 ArkoUndoManager，替换默认的 Cocoa undo/redo）
+            CommandGroup(replacing: .undoRedo) {
+                Button("撤销") { vm.undo() }
+                    .keyboardShortcut("z", modifiers: .command)
+                    .disabled(!vm.undoManager.canUndo)
+                Button("重做") { vm.redo() }
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
+                    .disabled(!vm.undoManager.canRedo)
+            }
         }
     }
 

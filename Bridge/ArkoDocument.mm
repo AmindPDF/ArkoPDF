@@ -6,6 +6,12 @@
 #include "ipdf_document.h"
 #include "ipdf_page.h"
 #include "ipdf_pageprocess.h"
+#include "ipdf_bookmark.h"
+
+@interface ArkoDocument ()
+- (void)collectOutline:(IPDF_BookmarkTree *)tree parent:(IPDF_Bookmark *)parent level:(int)level path:(NSMutableArray *)path into:(NSMutableArray *)items;
+- (IPDF_Bookmark *)bookmarkAtPath:(NSArray<NSNumber *> *)path tree:(IPDF_BookmarkTree *)tree;
+@end
 
 @implementation ArkoDocument {
     IPDF_Document *_doc;
@@ -246,6 +252,100 @@
             PDSDK_DestroyPageHandlerClone(clone);
         }
     }
+}
+
+#pragma mark - 大纲（书签树）
+
+- (NSArray<NSDictionary *> *)outlineItems {
+    if (!_doc) return @[];
+    IPDF_BookmarkTree *tree = _doc->GetBookmarks();
+    if (!tree) return @[];
+    NSMutableArray *items = [NSMutableArray array];
+    NSMutableArray *path = [NSMutableArray array];
+    [self collectOutline:tree parent:NULL level:0 path:path into:items];
+    tree->Release();
+    return items;
+}
+
+- (void)collectOutline:(IPDF_BookmarkTree *)tree
+                parent:(IPDF_Bookmark *)parent
+                 level:(int)level
+                  path:(NSMutableArray *)path
+                  into:(NSMutableArray *)items {
+    int siblingIndex = 0;
+    IPDF_Bookmark *b = tree->GetFirstChild(parent);
+    while (b) {
+        [path addObject:@(siblingIndex)];
+        const char *title = b->GetTitleUTF8();
+        NSString *titleStr = title ? [NSString stringWithUTF8String:title] : @"";
+        PDSDK_Dest dest = {};
+        b->GetDestInfo(&dest, _doc);
+        [items addObject:@{
+            @"title": titleStr,
+            @"level": @(level),
+            @"page": @(dest.page_index),
+            @"path": [path copy],
+        }];
+        [self collectOutline:tree parent:b level:level + 1 path:path into:items];
+        [path removeLastObject];
+
+        IPDF_Bookmark *next = tree->GetNextSibling(b);
+        b->Release();
+        b = next;
+        siblingIndex++;
+    }
+}
+
+- (IPDF_Bookmark *)bookmarkAtPath:(NSArray<NSNumber *> *)path tree:(IPDF_BookmarkTree *)tree {
+    IPDF_Bookmark *current = NULL;
+    for (NSNumber *n in path) {
+        int idx = n.intValue;
+        IPDF_Bookmark *child = tree->GetFirstChild(current);
+        for (int i = 0; i < idx; i++) {
+            if (!child) break;
+            IPDF_Bookmark *next = tree->GetNextSibling(child);
+            child->Release();
+            child = next;
+        }
+        if (current) current->Release();
+        current = child;
+    }
+    return current;  // 调用方负责 Release
+}
+
+- (void)addBookmark:(NSString *)title underPath:(NSArray<NSNumber *> *)path {
+    if (!_doc) return;
+    IPDF_BookmarkTree *tree = _doc->GetBookmarks();
+    if (!tree) return;
+    IPDF_Bookmark *parent = [self bookmarkAtPath:path tree:tree];  // NULL 表示根
+    IPDF_Bookmark *newBM = tree->InsertBookmark([title UTF8String], parent, NULL);
+    if (parent) parent->Release();
+    if (newBM) newBM->Release();
+    tree->Release();
+}
+
+- (void)renameBookmarkAtPath:(NSArray<NSNumber *> *)path title:(NSString *)title {
+    if (!_doc) return;
+    IPDF_BookmarkTree *tree = _doc->GetBookmarks();
+    if (!tree) return;
+    IPDF_Bookmark *bm = [self bookmarkAtPath:path tree:tree];
+    if (bm) {
+        bm->SetTitle([title UTF8String]);
+        bm->Release();
+    }
+    tree->Release();
+}
+
+- (void)removeBookmarkAtPath:(NSArray<NSNumber *> *)path {
+    if (!_doc) return;
+    IPDF_BookmarkTree *tree = _doc->GetBookmarks();
+    if (!tree) return;
+    IPDF_Bookmark *bm = [self bookmarkAtPath:path tree:tree];
+    if (bm) {
+        tree->RemoveBookmark(bm);
+        bm->Release();
+    }
+    tree->Release();
 }
 
 - (void)close {

@@ -28,6 +28,16 @@ struct AnnotationItem: Identifiable {
     var pageLabel: String { "第 \(pageIndex + 1) 页" }
 }
 
+/// 大纲（书签树）里的一项。
+struct OutlineItem: Identifiable {
+    let title: String
+    let level: Int
+    let page: Int
+    let path: [Int]
+
+    var id: String { path.map(String.init).joined(separator: "-") }
+}
+
 final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
 
     // MARK: - 文档状态
@@ -48,6 +58,9 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
 
     /// 当前文档所有标注（标注面板数据源）。
     @Published var annotations: [AnnotationItem] = []
+
+    /// 当前文档大纲（书签树，扁平列表）。
+    @Published var outline: [OutlineItem] = []
 
     /// 当前「定位」的标注（标注面板点击后跳转并高亮描边）。
     @Published var focusedAnnotationID: String?
@@ -217,6 +230,44 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         focusedAnnotationID = item.id
     }
 
+    // MARK: - 大纲（书签树）
+
+    /// 重建大纲数据源。
+    func refreshOutline() {
+        guard let doc = document else { outline = []; return }
+        var items: [OutlineItem] = []
+        for info in doc.outlineItems() {
+            guard let title = info["title"] as? String,
+                  let levelNum = info["level"] as? NSNumber,
+                  let pageNum = info["page"] as? NSNumber,
+                  let pathArr = info["path"] as? [NSNumber] else { continue }
+            items.append(OutlineItem(title: title,
+                                    level: levelNum.intValue,
+                                    page: pageNum.intValue,
+                                    path: pathArr.map { $0.intValue }))
+        }
+        outline = items
+    }
+
+    /// 在某大纲项下添加子项（parent 为 nil 表示加到根）。
+    func addOutlineItem(title: String, under parent: OutlineItem?) {
+        guard let doc = document else { return }
+        doc.addBookmark(title, underPath: parent?.path.map { NSNumber(value: $0) })
+        refreshOutline()
+    }
+
+    func renameOutlineItem(_ item: OutlineItem, title: String) {
+        guard let doc = document else { return }
+        doc.renameBookmark(atPath: item.path.map { NSNumber(value: $0) }, title: title)
+        refreshOutline()
+    }
+
+    func removeOutlineItem(_ item: OutlineItem) {
+        guard let doc = document else { return }
+        doc.removeBookmark(atPath: item.path.map { NSNumber(value: $0) })
+        refreshOutline()
+    }
+
     /// 供撤销/重做闭包调用：执行原始操作并刷新，不注册新撤销项。
     func performUndoRedo(_ op: () -> Void) {
         op()
@@ -356,6 +407,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
                 zoom = 1.0
                 cache.removeAllObjects()
                 refreshAnnotations()
+                refreshOutline()
             }
         } catch {
             document = nil
@@ -380,6 +432,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         currentPage = 0
         selection = nil
         annotations = []
+        outline = []
         focusedAnnotationID = nil
         undoManager.reset()
         cache.removeAllObjects()
