@@ -189,6 +189,7 @@ final class PDFPageCanvasView: NSView {
         vm.$selection.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$renderRevision.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$zoom.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
+        vm.$focusedAnnotationID.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
     }
 
     private var zoom: CGFloat { CGFloat(viewModel?.zoom ?? 1.0) }
@@ -222,6 +223,21 @@ final class PDFPageCanvasView: NSView {
         if let sel = vm.selection, sel.pageIndex == pageIndex, !sel.charBoxes.isEmpty {
             drawSelection(sel, pageSize: size)
         }
+
+        // 定位标注描边
+        if let focusID = vm.focusedAnnotationID,
+           let focusItem = vm.annotations.first(where: { $0.id == focusID }),
+           focusItem.pageIndex == pageIndex {
+            drawFocusedAnnotation(focusItem.rect, pageSize: size)
+        }
+    }
+
+    private func drawFocusedAnnotation(_ rect: CGRect, pageSize: CGSize) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let viewRect = userToView(rect, pageSize: pageSize).insetBy(dx: -4, dy: -4)
+        ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+        ctx.setLineWidth(2.0)
+        ctx.stroke(viewRect)
     }
 
     private func drawSelection(_ sel: TextSelection, pageSize: CGSize) {

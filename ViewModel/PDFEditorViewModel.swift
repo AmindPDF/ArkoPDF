@@ -21,6 +21,8 @@ struct AnnotationItem: Identifiable {
     let annotIndex: Int
     let type: MarkupType
     let color: MarkupColor
+    let opacity: Float
+    let rect: CGRect
 
     var id: String { "\(pageIndex)-\(annotIndex)" }
     var pageLabel: String { "第 \(pageIndex + 1) 页" }
@@ -46,6 +48,12 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
 
     /// 当前文档所有标注（标注面板数据源）。
     @Published var annotations: [AnnotationItem] = []
+
+    /// 当前「定位」的标注（标注面板点击后跳转并高亮描边）。
+    @Published var focusedAnnotationID: String?
+
+    /// 撤销/重做栈。
+    let undoManager = ArkoUndoManager()
 
     // MARK: - 模块 / 工具
     let modules: [ModuleKind: EditorModule]
@@ -97,7 +105,24 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
     func applyMarkup(_ handler: AnnotHandler, lineBoxes: [CGRect], pageIndex: Int) {
         guard let page = document?.page(at: pageIndex) else { return }
         handler.apply(lineBoxes: lineBoxes, on: page, color: markupColor.sdkColor, opacity: markupOpacity)
-        // 广播标注变更事件（创建），供模块/工具/面板/视图订阅
+        let color = markupColor
+        let opacity = markupOpacity
+
+        // 撤销/重做：添加 → 撤销删末尾、重做重新添加
+        undoManager.register(UndoItem(
+            description: "添加\(handler.displayName)",
+            undo: { ctx in
+                ctx.performUndoRedo { ctx.removeLastAnnotRaw(pageIndex: pageIndex) }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo {
+                    if let p = ctx.document?.page(at: pageIndex) {
+                        handler.apply(lineBoxes: lineBoxes, on: p, color: color.sdkColor, opacity: opacity)
+                    }
+                }
+            }
+        ))
+
         annotEvents.send(AnnotEvent(kind: .added, pageIndex: pageIndex, annotType: handler.type))
         refreshAnnotations()
         invalidateAllPages()
@@ -113,9 +138,13 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
                 guard let info = page.annotInfo(at: a),
                       let typeNum = info["type"] as? NSNumber,
                       let colorNum = info["color"] as? NSNumber,
+                      let opacityNum = info["opacity"] as? NSNumber,
+                      let rectValue = info["rect"] as? NSValue,
                       let type = MarkupType(rawValue: typeNum.intValue) else { continue }
                 let color = MarkupColor.from(sdkColor: colorNum.uint32Value)
-                items.append(AnnotationItem(pageIndex: p, annotIndex: a, type: type, color: color))
+                items.append(AnnotationItem(pageIndex: p, annotIndex: a, type: type,
+                                            color: color, opacity: opacityNum.floatValue,
+                                            rect: rectValue.rectValue))
             }
         }
         annotations = items
@@ -124,7 +153,26 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
     /// 删除某条标注。
     func deleteAnnotation(_ item: AnnotationItem) {
         guard let page = document?.page(at: item.pageIndex) else { return }
+        let captured = item
         page.removeAnnot(at: item.annotIndex)
+
+        undoManager.register(UndoItem(
+            description: "删除\(item.type.displayName)",
+            undo: { ctx in
+                ctx.performUndoRedo {
+                    if let p = ctx.document?.page(at: captured.pageIndex) {
+                        p.addTextMarkup(ofType: captured.type.rawValue,
+                                        lineBoxes: [NSValue(rect: captured.rect)],
+                                        color: captured.color.sdkColor,
+                                        opacity: captured.opacity)
+                    }
+                }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo { ctx.removeLastAnnotRaw(pageIndex: captured.pageIndex) }
+            }
+        ))
+
         annotEvents.send(AnnotEvent(kind: .removed, pageIndex: item.pageIndex, annotType: item.type))
         refreshAnnotations()
         invalidateAllPages()
@@ -133,10 +181,73 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
     /// 修改某条标注的颜色。
     func changeAnnotationColor(_ item: AnnotationItem, to color: MarkupColor) {
         guard let page = document?.page(at: item.pageIndex) else { return }
+        let oldColor = item.color
         page.setAnnotColor(color.sdkColor, at: item.annotIndex)
+
+        undoManager.register(UndoItem(
+            description: "修改\(item.type.displayName)颜色",
+            undo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.setAnnotColor(oldColor.sdkColor, at: item.annotIndex) }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.setAnnotColor(color.sdkColor, at: item.annotIndex) }
+            }
+        ))
+
         annotEvents.send(AnnotEvent(kind: .modified, pageIndex: item.pageIndex, annotType: item.type))
         refreshAnnotations()
         invalidateAllPages()
+    }
+
+    /// 修改某条标注的透明度。
+    func changeAnnotationOpacity(_ item: AnnotationItem, to opacity: Float) {
+        guard let page = document?.page(at: item.pageIndex) else { return }
+        let oldOpacity = item.opacity
+        page.setAnnotOpacity(opacity, at: item.annotIndex)
+
+        undoManager.register(UndoItem(
+            description: "修改\(item.type.displayName)透明度",
+            undo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.setAnnotOpacity(oldOpacity, at: item.annotIndex) }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: item.pageIndex)?.setAnnotOpacity(opacity, at: item.annotIndex) }
+            }
+        ))
+
+        annotEvents.send(AnnotEvent(kind: .modified, pageIndex: item.pageIndex, annotType: item.type))
+        refreshAnnotations()
+        invalidateAllPages()
+    }
+
+    /// 定位到某条标注（跳页 + 高亮描边）。
+    func focusAnnotation(_ item: AnnotationItem) {
+        currentPage = item.pageIndex
+        focusedAnnotationID = item.id
+    }
+
+    /// 供撤销/重做闭包调用：执行原始操作并刷新，不注册新撤销项。
+    func performUndoRedo(_ op: () -> Void) {
+        op()
+        pageCount = document?.pageCount ?? 0
+        currentPage = min(currentPage, max(0, pageCount - 1))
+        refreshAnnotations()
+        invalidateAllPages()
+    }
+
+    private func removeLastAnnotRaw(pageIndex: Int) {
+        guard let page = document?.page(at: pageIndex), page.annotCount > 0 else { return }
+        page.removeAnnot(at: page.annotCount - 1)
+    }
+
+    func undo() {
+        undoManager.undo(context: self)
+        focusedAnnotationID = nil
+    }
+
+    func redo() {
+        undoManager.redo(context: self)
+        focusedAnnotationID = nil
     }
 
     // MARK: - 事件路由
@@ -168,20 +279,44 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         let size = pageSizeInPoints(at: index)
         let w = size.width > 0 ? size.width : 612
         let h = size.height > 0 ? size.height : 792
-        doc.insertBlankPage(at: index + 1, width: w, height: h)
-        // pageCount/缓存已在 didChangePages 回调里刷新；这里跟随插入的新页
-        currentPage = min(index + 1, max(0, pageCount - 1))
+        let insertAt = index + 1
+        doc.insertBlankPage(at: insertAt, width: w, height: h)
+
+        undoManager.register(UndoItem(
+            description: "插入空白页",
+            undo: { ctx in
+                ctx.performUndoRedo { ctx.document?.deletePages(from: insertAt, count: 1) }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo { ctx.document?.insertBlankPage(at: insertAt, width: w, height: h) }
+            }
+        ))
+
+        currentPage = min(insertAt, max(0, pageCount - 1))
     }
 
     func deletePage(at index: Int) {
         guard let doc = document, pageCount > 1 else { return } // 至少保留一页
+        // 页面删除的撤销需要「抽取该页→重插入」，涉及临时文档，当前暂不注册撤销。
         doc.deletePages(from: index, count: 1)
         currentPage = min(currentPage, max(0, pageCount - 1))
     }
 
     func rotatePageClockwise90(at index: Int) {
         guard let doc = document else { return }
-        doc.rotatePageClockwise90(index)
+        let old = doc.pageRotation(at: index)
+        let new = (old + 1) % 4
+        doc.setPageRotation(new, at: index)
+
+        undoManager.register(UndoItem(
+            description: "旋转页面",
+            undo: { ctx in
+                ctx.performUndoRedo { ctx.document?.setPageRotation(old, at: index) }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo { ctx.document?.setPageRotation(new, at: index) }
+            }
+        ))
     }
 
     /// 上移/下移一页（offset 为 -1 或 +1，内部用 SwapPages 实现）。
@@ -190,6 +325,18 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         let target = index + offset
         guard target >= 0, target < pageCount else { return }
         doc.swapPage(index, with: target)
+
+        // Swap 是自反的：撤销/重做都再交换一次。
+        undoManager.register(UndoItem(
+            description: "移动页面",
+            undo: { ctx in
+                ctx.performUndoRedo { ctx.document?.swapPage(index, with: target) }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo { ctx.document?.swapPage(index, with: target) }
+            }
+        ))
+
         currentPage = target
     }
 
@@ -230,6 +377,8 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
         currentPage = 0
         selection = nil
         annotations = []
+        focusedAnnotationID = nil
+        undoManager.reset()
         cache.removeAllObjects()
     }
 

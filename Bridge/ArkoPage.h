@@ -37,10 +37,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 // 标注管理（枚举 / 删除 / 修改）
 @property (nonatomic, readonly) NSInteger annotCount;
-/// 返回 @{@"type":@(ANNOT_TYPE), @"color":@(COLOR_MAKERGB), @"opacity":@(float)}。
+/// 返回 @{@"type":@(ANNOT_TYPE), @"color":@(COLOR_MAKERGB), @"opacity":@(float), @"rect":NSValue(CGRect)}。
 - (nullable NSDictionary *)annotInfoAtIndex:(NSInteger)index;
 - (void)removeAnnotAtIndex:(NSInteger)index;
 - (void)setAnnotColor:(unsigned int)color atIndex:(NSInteger)index;
+- (void)setAnnotOpacity:(float)opacity atIndex:(NSInteger)index;
 
 /// 保存前调用：重新序列化页内容（含新增标注）。
 - (void)generateContent;

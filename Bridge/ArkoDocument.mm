@@ -166,22 +166,21 @@
     [self notifyPPODidChange:ArkoPPOOperationSwapPages];
 }
 
-- (void)rotatePageClockwise90:(NSInteger)index {
-    if (!_doc) return;
-    // 读取当前旋转（0/1/2/3），+1 为顺时针 90°
-    int current = 0;
+- (NSInteger)pageRotationAtIndex:(NSInteger)index {
+    if (!_doc) return 0;
     IPDF_Page *p = _doc->GetPage((int)index);
-    if (p) {
-        current = p->GetRotate();
-        p->Release();
-    }
-    int newFlag = (current + 1) % 4;
+    int r = p ? p->GetRotate() : 0;
+    if (p) p->Release();
+    return (NSInteger)r;
+}
 
+- (void)setPageRotation:(NSInteger)rotateFlag atIndex:(NSInteger)index {
+    if (!_doc) return;
     [self notifyPPOWillChange:ArkoPPOOperationRotatePage pages:@[@(index)]];
     _pages = nil;
     IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
     if (ppo) {
-        ppo->RotatePage((int)index, newFlag);
+        ppo->RotatePage((int)index, (int)rotateFlag);
         ppo->Release();
     }
     [self reloadPages];

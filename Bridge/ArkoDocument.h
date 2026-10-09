@@ -38,7 +38,8 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 - (void)insertBlankPageAt:(NSInteger)index width:(CGFloat)width height:(CGFloat)height;
 - (void)deletePagesFrom:(NSInteger)start count:(NSInteger)count;
 - (void)swapPage:(NSInteger)page1 with:(NSInteger)page2;
-- (void)rotatePageClockwise90:(NSInteger)index;
+- (NSInteger)pageRotationAtIndex:(NSInteger)index;
+- (void)setPageRotation:(NSInteger)rotateFlag atIndex:(NSInteger)index;
 
 - (instancetype)init NS_UNAVAILABLE;
 

@@ -231,10 +231,14 @@
     }
     unsigned int color = 0;
     annot->GetColor(color);
+    PDSDK_FloatRect fr = annot->GetRect();
+    CGRect rect = CGRectMake((CGFloat)fr.left, (CGFloat)fr.bottom,
+                             (CGFloat)(fr.right - fr.left), (CGFloat)(fr.top - fr.bottom));
     return @{
         @"type": @(annot->GetType()),
         @"color": @(color),
         @"opacity": @(annot->GetOpacity()),
+        @"rect": [NSValue valueWithRect:rect],
     };
 }
 
@@ -257,6 +261,17 @@
     IPDF_Annot *annot = annots->GetAnnot((int)index);
     if (annot) {
         annot->SetColor(color);
+    }
+}
+
+- (void)setAnnotOpacity:(float)opacity atIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    if (annot) {
+        annot->SetOpacity(opacity);
     }
 }
 

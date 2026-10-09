@@ -31,6 +31,16 @@ struct ToolbarView: View {
 
             Spacer()
 
+            // 撤销 / 重做
+            Button(action: vm.undo) { Image(systemName: "arrow.uturn.backward") }
+                .disabled(!vm.undoManager.canUndo)
+                .help("撤销")
+            Button(action: vm.redo) { Image(systemName: "arrow.uturn.forward") }
+                .disabled(!vm.undoManager.canRedo)
+                .help("重做")
+
+            Divider().frame(height: 20)
+
             // 翻页
             Button(action: vm.goToPreviousPage) { Image(systemName: "chevron.up") }
             Button(action: vm.goToNextPage) { Image(systemName: "chevron.down") }
