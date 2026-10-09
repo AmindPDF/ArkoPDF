@@ -1,6 +1,6 @@
 //  PDFDocumentView.swift
-//  文档主视图：单页 / 单页连续 / 双页 / 双页连续四种模式，
-//  页面画布（NSView）负责渲染、选区高亮、鼠标路由。
+//  文档主视图：自定义 NSScrollView 承载页面内容，利用内置放大能力实现
+//  捏合/⌘+滚轮中心缩放；单页/单页连续/双页/双页连续四种模式。
 
 import SwiftUI
 import AppKit
@@ -11,22 +11,12 @@ struct PDFDocumentView: View {
 
     var body: some View {
         GeometryReader { geo in
-            content
-                .onAppear { vm.setViewportWidth(geo.size.width) }
-                .onChange(of: geo.size.width) { newWidth in vm.setViewportWidth(newWidth) }
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if vm.document == nil {
-            placeholder
-        } else {
-            switch vm.displayMode {
-            case .single: SinglePageView()
-            case .singleContinuous: SingleContinuousView()
-            case .double: DoublePageView()
-            case .doubleContinuous: DoubleContinuousView()
+            if vm.document == nil {
+                placeholder
+            } else {
+                PDFScrollView(viewModel: vm)
+                    .onAppear { vm.setViewportWidth(geo.size.width) }
+                    .onChange(of: geo.size.width) { w in vm.setViewportWidth(w) }
             }
         }
     }
@@ -43,85 +33,163 @@ struct PDFDocumentView: View {
     }
 }
 
-// MARK: - 单页模式
+// MARK: - 自定义 NSScrollView（放大/中心缩放/捏合）
 
-private struct SinglePageView: View {
-    @EnvironmentObject var vm: PDFEditorViewModel
+private struct PDFScrollView: NSViewRepresentable {
+    @ObservedObject var viewModel: PDFEditorViewModel
 
-    var body: some View {
-        ScrollView([.horizontal, .vertical]) {
-            PDFPageCanvas(viewModel: vm, pageIndex: vm.currentPage)
-                .frame(width: frameW, height: frameH)
-                .padding(48)
-        }
+    func makeNSView(context: Context) -> PDFScrollViewImpl {
+        let scroll = PDFScrollViewImpl()
+        scroll.viewModel = viewModel
+        return scroll
     }
 
-    private var frameW: CGFloat {
-        vm.pageSizeInPoints(at: vm.currentPage).width * CGFloat(vm.zoom)
-    }
-    private var frameH: CGFloat {
-        vm.pageSizeInPoints(at: vm.currentPage).height * CGFloat(vm.zoom)
+    func updateNSView(_ nsView: PDFScrollViewImpl, context: Context) {
+        nsView.viewModel = viewModel
+        nsView.reloadContentIfNeeded()
     }
 }
 
-// MARK: - 单页连续模式
+final class PDFScrollViewImpl: NSScrollView {
+    weak var viewModel: PDFEditorViewModel?
+    private var cancellables = Set<AnyCancellable>()
+    private var syncing = false
+    private var currentMode: DisplayMode?
 
-private struct SingleContinuousView: View {
-    @EnvironmentObject var vm: PDFEditorViewModel
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        hasVerticalScroller = true
+        hasHorizontalScroller = true
+        allowsMagnification = true
+        minMagnification = 0.25
+        maxMagnification = 4.0
+        drawsBackground = true
+        backgroundColor = NSColor.windowBackgroundColor
 
-    var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 20) {
-                ForEach(0..<vm.pageCount, id: \.self) { i in
-                    PDFPageCanvas(viewModel: vm, pageIndex: i)
-                        .frame(width: pageW(i), height: pageH(i))
-                        .id("page-\(i)")
-                        .padding(.horizontal, 48)
-                }
+        guard let vm = viewModel else { return }
+        cancellables.removeAll()
+
+        // vm.zoom → magnification
+        vm.$zoom.sink { [weak self] z in
+            guard let self = self, !self.syncing else { return }
+            self.syncing = true
+            self.magnification = CGFloat(z)
+            self.syncing = false
+        }.store(in: &cancellables)
+
+        // magnification → vm.zoom（捏合时 NSScrollView 自动改 magnification）
+        self.publisher(for: \.magnification)
+            .sink { [weak self] mag in
+                guard let self = self, !self.syncing else { return }
+                self.syncing = true
+                self.viewModel?.zoom = Double(mag)
+                self.syncing = false
             }
-            .padding(.vertical, 28)
+            .store(in: &cancellables)
+
+        reloadContent()
+        magnification = CGFloat(vm.zoom)
+    }
+
+    func reloadContentIfNeeded() {
+        guard let vm = viewModel else { return }
+        if currentMode != vm.displayMode {
+            currentMode = vm.displayMode
+            reloadContent()
         }
     }
 
-    private func pageW(_ i: Int) -> CGFloat { vm.pageSizeInPoints(at: i).width * CGFloat(vm.zoom) }
-    private func pageH(_ i: Int) -> CGFloat { vm.pageSizeInPoints(at: i).height * CGFloat(vm.zoom) }
-}
+    private func reloadContent() {
+        guard let vm = viewModel else { return }
+        let content: AnyView
+        switch vm.displayMode {
+        case .single: content = AnyView(SinglePageContent())
+        case .singleContinuous: content = AnyView(SingleContinuousContent())
+        case .double: content = AnyView(DoublePageContent())
+        case .doubleContinuous: content = AnyView(DoubleContinuousContent())
+        }
+        let hosting = NSHostingView(rootView: content.environmentObject(vm))
+        hosting.frame = NSRect(origin: .zero, size: hosting.fittingSize)
+        documentView = hosting
+    }
 
-// MARK: - 双页模式（单跨页）
-
-private struct DoublePageView: View {
-    @EnvironmentObject var vm: PDFEditorViewModel
-
-    var body: some View {
-        ScrollView([.horizontal, .vertical]) {
-            SpreadView(spreadIndex: vm.spreadIndex(forPage: vm.currentPage))
-                .padding(48)
+    // ⌘+滚轮：以鼠标位置为中心缩放；非 ⌘ 滚轮交给滚动视图正常滚动
+    override func scrollWheel(with event: NSEvent) {
+        if event.modifierFlags.contains(.command) {
+            let delta = event.scrollingDeltaY
+            guard delta != 0 else { return }
+            let factor = exp(Double(delta) * 0.01)
+            let newMag = min(max(magnification * CGFloat(factor), minMagnification), maxMagnification)
+            let point = convert(event.locationInWindow, from: nil)
+            setMagnification(newMag, centeredAt: point)
+            syncing = true
+            viewModel?.zoom = Double(newMag)
+            syncing = false
+        } else {
+            super.scrollWheel(with: event)
         }
     }
 }
 
-// MARK: - 双页连续模式
+// MARK: - 页面内容（1x 尺寸，缩放交给 NSScrollView）
 
-private struct DoubleContinuousView: View {
+private struct SinglePageContent: View {
     @EnvironmentObject var vm: PDFEditorViewModel
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 20) {
-                ForEach(0..<vm.spreadCount, id: \.self) { s in
-                    SpreadView(spreadIndex: s)
-                        .id("spread-\(s)")
-                        .padding(.horizontal, 48)
-                }
+        PDFPageCanvas(viewModel: vm, pageIndex: vm.currentPage)
+            .frame(width: pageW, height: pageH)
+            .padding(48)
+    }
+
+    private var pageW: CGFloat { vm.pageSizeInPoints(at: vm.currentPage).width }
+    private var pageH: CGFloat { vm.pageSizeInPoints(at: vm.currentPage).height }
+}
+
+private struct SingleContinuousContent: View {
+    @EnvironmentObject var vm: PDFEditorViewModel
+
+    var body: some View {
+        VStack(spacing: 20) {
+            ForEach(0..<vm.pageCount, id: \.self) { i in
+                PDFPageCanvas(viewModel: vm, pageIndex: i)
+                    .frame(width: pageW(i), height: pageH(i))
+                    .id("page-\(i)")
+                    .padding(.horizontal, 48)
             }
-            .padding(.vertical, 28)
         }
+        .padding(.vertical, 28)
+    }
+
+    private func pageW(_ i: Int) -> CGFloat { vm.pageSizeInPoints(at: i).width }
+    private func pageH(_ i: Int) -> CGFloat { vm.pageSizeInPoints(at: i).height }
+}
+
+private struct DoublePageContent: View {
+    @EnvironmentObject var vm: PDFEditorViewModel
+
+    var body: some View {
+        SpreadContent(spreadIndex: vm.spreadIndex(forPage: vm.currentPage))
+            .padding(48)
     }
 }
 
-// MARK: - 一个跨页（两页并排）
+private struct DoubleContinuousContent: View {
+    @EnvironmentObject var vm: PDFEditorViewModel
 
-private struct SpreadView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            ForEach(0..<vm.spreadCount, id: \.self) { s in
+                SpreadContent(spreadIndex: s)
+                    .id("spread-\(s)")
+                    .padding(.horizontal, 48)
+            }
+        }
+        .padding(.vertical, 28)
+    }
+}
+
+private struct SpreadContent: View {
     @EnvironmentObject var vm: PDFEditorViewModel
     let spreadIndex: Int
 
@@ -131,7 +199,6 @@ private struct SpreadView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // 左页；封面跨页左页为空 → 留白占位
             if let left = spread.left {
                 PDFPageCanvas(viewModel: vm, pageIndex: left)
                     .frame(width: pageW(left), height: pageH(left))
@@ -139,7 +206,6 @@ private struct SpreadView: View {
                 Color.clear
                     .frame(width: pageW(0), height: pageH(0))
             }
-            // 右页
             if let right = spread.right {
                 PDFPageCanvas(viewModel: vm, pageIndex: right)
                     .frame(width: pageW(right), height: pageH(right))
@@ -147,8 +213,8 @@ private struct SpreadView: View {
         }
     }
 
-    private func pageW(_ i: Int) -> CGFloat { vm.pageSizeInPoints(at: i).width * CGFloat(vm.zoom) }
-    private func pageH(_ i: Int) -> CGFloat { vm.pageSizeInPoints(at: i).height * CGFloat(vm.zoom) }
+    private func pageW(_ i: Int) -> CGFloat { vm.pageSizeInPoints(at: i).width }
+    private func pageH(_ i: Int) -> CGFloat { vm.pageSizeInPoints(at: i).height }
 }
 
 // MARK: - 画布（NSViewRepresentable）
@@ -171,7 +237,7 @@ private struct PDFPageCanvas: NSViewRepresentable {
     }
 }
 
-// MARK: - 画布 NSView
+// MARK: - 画布 NSView（1x 尺寸，缩放由外层 NSScrollView 负责）
 
 final class PDFPageCanvasView: NSView {
     weak var viewModel: PDFEditorViewModel?
@@ -188,12 +254,9 @@ final class PDFPageCanvasView: NSView {
         cancellables.removeAll()
         vm.$selection.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$renderRevision.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
-        vm.$zoom.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$focusedAnnotationID.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$draft.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
     }
-
-    private var zoom: CGFloat { CGFloat(viewModel?.zoom ?? 1.0) }
 
     private var pageSize: CGSize {
         guard let vm = viewModel else { return .zero }
@@ -208,9 +271,9 @@ final class PDFPageCanvasView: NSView {
         let size = pageSize
         guard size.width > 0, size.height > 0 else { return }
 
-        // 页面图
-        if let cg = vm.image(forPage: pageIndex, zoom: Double(zoom)) {
-            let rect = CGRect(x: 0, y: 0, width: size.width * zoom, height: size.height * zoom)
+        // 页面图（固定 1x 渲染，缩放由外层 NSScrollView 放大处理）
+        if let cg = vm.image(forPage: pageIndex, zoom: 1.0) {
+            let rect = CGRect(x: 0, y: 0, width: size.width, height: size.height)
             let nsImage = NSImage(cgImage: cg, size: NSSize(width: CGFloat(cg.width), height: CGFloat(cg.height)))
             nsImage.draw(in: rect,
                          from: .zero,
@@ -256,7 +319,7 @@ final class PDFPageCanvasView: NSView {
         ctx.setStrokeColor(nsColor.cgColor)
         ctx.setLineWidth(1.5)
 
-        let pts = draft.points.map { CGPoint(x: $0.x * zoom, y: (pageSize.height - $0.y) * zoom) }
+        let pts = draft.points.map { CGPoint(x: $0.x, y: pageSize.height - $0.y) }
         guard pts.count >= 2 else { return }
 
         let r = CGRect(x: min(pts[0].x, pts[1].x), y: min(pts[0].y, pts[1].y),
@@ -270,7 +333,7 @@ final class PDFPageCanvasView: NSView {
             ctx.setFillColor(nsColor.withAlphaComponent(0.15).cgColor)
             ctx.fillEllipse(in: r)
             ctx.strokeEllipse(in: r)
-        default:  // line / polygon / polyline / ink
+        default:
             ctx.move(to: pts[0])
             for p in pts.dropFirst() { ctx.addLine(to: p) }
             if draft.type == .polygon { ctx.closePath() }
@@ -291,17 +354,14 @@ final class PDFPageCanvasView: NSView {
         }
     }
 
-    // MARK: 坐标换算（用户坐标 Y-up 左下原点 ↔ 视图坐标 Y-down 左上原点）
+    // MARK: 坐标换算（1x，用户坐标 Y-up ↔ 视图坐标 Y-down）
 
     private func userToView(_ box: CGRect, pageSize: CGSize) -> CGRect {
-        CGRect(x: box.minX * zoom,
-               y: (pageSize.height - box.maxY) * zoom,
-               width: box.width * zoom,
-               height: box.height * zoom)
+        CGRect(x: box.minX, y: pageSize.height - box.maxY, width: box.width, height: box.height)
     }
 
     private func viewToUser(_ p: CGPoint, pageSize: CGSize) -> CGPoint {
-        CGPoint(x: p.x / zoom, y: pageSize.height - p.y / zoom)
+        CGPoint(x: p.x, y: pageSize.height - p.y)
     }
 
     // MARK: 鼠标路由
@@ -309,23 +369,6 @@ final class PDFPageCanvasView: NSView {
     override func mouseDown(with event: NSEvent) { route(.down, event) }
     override func mouseDragged(with event: NSEvent) { route(.drag, event) }
     override func mouseUp(with event: NSEvent) { route(.up, event) }
-
-    // ⌘+滚轮：缩放（非 ⌘ 滚轮交给上层 ScrollView 滚动）
-    override func scrollWheel(with event: NSEvent) {
-        if event.modifierFlags.contains(.command) {
-            let delta = event.scrollingDeltaY
-            if delta != 0 {
-                viewModel?.zoomBy(exp(Double(delta) * 0.01))
-            }
-        } else {
-            super.scrollWheel(with: event)
-        }
-    }
-
-    // 触控板捏合：缩放
-    override func magnify(with event: NSEvent) {
-        viewModel?.zoomBy(Double(1 + event.magnification))
-    }
 
     private func route(_ phase: ToolPhase, _ event: NSEvent) {
         guard let vm = viewModel else { return }
