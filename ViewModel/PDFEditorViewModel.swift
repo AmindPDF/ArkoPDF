@@ -47,7 +47,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
     // MARK: - 渲染缓存
     private let cache = NSCache<NSString, CGImage>()
 
-    init() {
+    override init() {
         var map: [ModuleKind: EditorModule] = [:]
         let reading = ReadingModule()
         let annotate = AnnotateModule()
