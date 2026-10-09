@@ -13,6 +13,16 @@ enum MarkupType: Int {
     case strikeout = 13
 }
 
+/// 标注变更事件（创建/修改/删除），通过 PassthroughSubject 广播给各模块/面板/视图。
+struct AnnotEvent {
+    enum Kind {
+        case added, modified, removed
+    }
+    let kind: Kind
+    let pageIndex: Int
+    let annotType: MarkupType
+}
+
 /// 标注颜色（原型 4 色）。
 enum MarkupColor: String, CaseIterable, Identifiable {
     case yellow, green, blue, red

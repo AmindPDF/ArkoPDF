@@ -15,7 +15,7 @@ enum DisplayMode: String, CaseIterable, Identifiable {
     var isDouble: Bool { self == .double || self == .doubleContinuous }
 }
 
-final class PDFEditorViewModel: ObservableObject, ToolContext {
+final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext {
 
     // MARK: - 文档状态
     @Published var document: ArkoDocument?
@@ -29,6 +29,9 @@ final class PDFEditorViewModel: ObservableObject, ToolContext {
     // MARK: - 标注状态
     @Published var markupColor: MarkupColor = .yellow
     @Published var markupOpacity: Float = 0.8
+
+    /// 标注变更事件广播（创建/修改/删除），供各模块/工具/面板/视图订阅。
+    let annotEvents = PassthroughSubject<AnnotEvent, Never>()
 
     // MARK: - 模块 / 工具
     let modules: [ModuleKind: EditorModule]
@@ -57,6 +60,7 @@ final class PDFEditorViewModel: ObservableObject, ToolContext {
             map[m.kind] = m
         }
         modules = map
+        super.init()
         activeModuleKind = .reading
         activeToolID = reading.activeTool?.id ?? ""
     }
@@ -79,6 +83,8 @@ final class PDFEditorViewModel: ObservableObject, ToolContext {
     func applyMarkup(_ handler: AnnotHandler, lineBoxes: [CGRect], pageIndex: Int) {
         guard let page = document?.page(at: pageIndex) else { return }
         handler.apply(lineBoxes: lineBoxes, on: page, color: markupColor.sdkColor, opacity: markupOpacity)
+        // 广播标注变更事件（创建），供模块/工具/面板/视图订阅
+        annotEvents.send(AnnotEvent(kind: .added, pageIndex: pageIndex, annotType: handler.type))
         invalidateAllPages()
     }
 
