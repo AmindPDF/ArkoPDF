@@ -6,6 +6,7 @@
 #import <Foundation/Foundation.h>
 #import <CoreGraphics/CoreGraphics.h>
 #import <AppKit/AppKit.h>
+#import <unistd.h>
 #import "ArkoSDK.h"
 #import "ArkoDocument.h"
 #import "ArkoPage.h"
@@ -148,6 +149,9 @@ int main(int argc, const char *argv[]) {
         [ArkoSDK unload];
 
         fprintf(stdout, failures == 0 ? "SMOKE TEST PASSED\n" : "SMOKE TEST FAILED\n");
-        return failures == 0 ? 0 : 1;
+        fflush(stdout);
+        // 用 _exit 跳过 C++ 全局析构：SDK 的静态对象析构在 macOS 上会 segfault。
+        // SDK 已 unload、文档已 close，跳过其余清理是安全的。
+        _exit(failures == 0 ? 0 : 1);
     }
 }
