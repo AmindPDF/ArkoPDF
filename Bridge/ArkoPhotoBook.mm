@@ -15,7 +15,8 @@
     float _spaceH, _spaceV;
     float _ratio;
     NSMutableArray<NSString *> *_paths;
-    NSMutableArray<NSValue *> *_pixels;  // NSValue(CGSize)
+    NSMutableArray<NSNumber *> *_pixW;
+    NSMutableArray<NSNumber *> *_pixH;
 }
 
 - (instancetype)init {
@@ -31,7 +32,8 @@
     _spaceH = 6; _spaceV = 6;
     _ratio = 5.0f / 7.0f;  // 竖版 5:7
     _paths = [NSMutableArray array];
-    _pixels = [NSMutableArray array];
+    _pixW = [NSMutableArray array];
+    _pixH = [NSMutableArray array];
     return self;
 }
 
@@ -43,7 +45,8 @@
 
 - (void)addImageAtPath:(NSString *)path pixelWidth:(int)w pixelHeight:(int)h {
     [_paths addObject:path];
-    [_pixels addObject:[NSValue valueWithCGSize:CGSizeMake((CGFloat)w, (CGFloat)h)]];
+    [_pixW addObject:@(w)];
+    [_pixH addObject:@(h)];
 }
 
 - (BOOL)buildAndSaveToURL:(NSURL *)url progress:(void (^)(float))progress isCancelled:(BOOL (^)(void))isCancelled error:(NSError **)error {
@@ -57,8 +60,7 @@
 
     _creator->Init(_paperW, _paperH, _cols, _rows, _marginH, _marginV, _spaceH, _spaceV, _ratio);
     for (NSUInteger i = 0; i < _paths.count; i++) {
-        CGSize s = [_pixels[i] CGSizeValue];
-        _creator->AddImage([_paths[i] UTF8String], (int)s.width, (int)s.height);
+        _creator->AddImage([_paths[i] UTF8String], _pixW[i].intValue, _pixH[i].intValue);
     }
     _creator->BuildPhotoBook(NULL);
 

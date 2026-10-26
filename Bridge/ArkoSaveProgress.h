@@ -22,7 +22,7 @@ public:
 /// 进度：把 SetRange/SetCurPos 归一化到 0..1 转发给 sink；IsCancel 转问 sink.onCancel。
 class ArkoSaveProgress : public IPDF_Progress {
 public:
-    __unsafe_unretained ArkoProgressSink *sink;
+    __unsafe_unretained ArkoProgressSink * _Nullable sink;
     float _min = 0, _max = 1;
 
     int IsCancel() override {
