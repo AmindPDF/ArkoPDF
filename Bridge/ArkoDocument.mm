@@ -222,6 +222,105 @@
     [self notifyPPODidChange:ArkoPPOOperationRotatePage];
 }
 
+static int *ArkoIntArrayFromPages(NSArray<NSNumber *> *pages) {
+    NSUInteger n = pages.count;
+    int *arr = (int *)malloc(sizeof(int) * n);
+    for (NSUInteger i = 0; i < n; i++) arr[i] = pages[i].intValue;
+    return arr;
+}
+
+- (BOOL)extractPages:(NSArray<NSNumber *> *)pages toURL:(NSURL *)url error:(NSError **)error {
+    if (!_doc || pages.count == 0) return NO;
+    IPDF_Document *dest = PDSDK_NewDocument();
+    if (!dest) return NO;
+    if (dest->NewBlankDoc(1, 1, 0) != 0) {  // 0 页空文档（返回 0 = 成功）
+        PDSDK_ReleaseDocument(dest);
+        return NO;
+    }
+    int *arr = ArkoIntArrayFromPages(pages);
+    IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
+    if (ppo) {
+        ppo->ExtractPages(arr, (int)pages.count, dest);
+        ppo->Release();
+    }
+    free(arr);
+
+    BOOL ok = NO;
+    IPDF_Creator *creator = PDSDK_NewCreator();
+    if (creator) {
+        creator->Init(dest, PDF_CREATE_NO_ORIGINAL);
+        ok = creator->Create([[url path] UTF8String], NULL, NULL) != 0;
+        creator->Release();
+    }
+    PDSDK_ReleaseDocument(dest);
+    if (!ok && error) {
+        *error = [NSError errorWithDomain:@"ArkoPDF.SDK" code:-5
+                                 userInfo:@{NSLocalizedDescriptionKey: @"提取页面保存失败"}];
+    }
+    return ok;
+}
+
+- (void)insertPagesFromURL:(NSURL *)url pages:(NSArray<NSNumber *> *)pages atIndex:(NSInteger)index {
+    if (!_doc || pages.count == 0) return;
+    IPDF_Document *src = PDSDK_NewDocument();
+    if (!src) return;
+    if (src->Open([[url path] UTF8String], 0) != PDF_OPEN_ERROR_SUCCESS) {
+        PDSDK_ReleaseDocument(src);
+        return;
+    }
+    int *arr = ArkoIntArrayFromPages(pages);
+
+    [self notifyPPOWillChange:ArkoPPOOperationInsertPages pages:@[@(index)]];
+    _pages = nil;
+    IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
+    if (ppo) {
+        ppo->InsertPagesFrom((int)index, src, arr, (int)pages.count);
+        ppo->Release();
+    }
+    [self reloadPages];
+    [self notifyPPODidChange:ArkoPPOOperationInsertPages];
+
+    free(arr);
+    PDSDK_ReleaseDocument(src);
+}
+
+- (void)replacePagesFromURL:(NSURL *)url pages:(NSArray<NSNumber *> *)pages atIndex:(NSInteger)start count:(NSInteger)count {
+    if (!_doc || pages.count == 0) return;
+    IPDF_Document *src = PDSDK_NewDocument();
+    if (!src) return;
+    if (src->Open([[url path] UTF8String], 0) != PDF_OPEN_ERROR_SUCCESS) {
+        PDSDK_ReleaseDocument(src);
+        return;
+    }
+    int *arr = ArkoIntArrayFromPages(pages);
+
+    [self notifyPPOWillChange:ArkoPPOOperationReplacePages pages:@[@(start)]];
+    _pages = nil;
+    IPDF_PageOrganizer *ppo = _doc->GetPageOrganizer();
+    if (ppo) {
+        ppo->RepalcePages((int)start, (int)count, src, arr, (int)pages.count);
+        ppo->Release();
+    }
+    [self reloadPages];
+    [self notifyPPODidChange:ArkoPPOOperationReplacePages];
+
+    free(arr);
+    PDSDK_ReleaseDocument(src);
+}
+
++ (NSInteger)pageCountOfURL:(NSURL *)url {
+    IPDF_Document *doc = PDSDK_NewDocument();
+    if (!doc) return 0;
+    if (doc->Open([[url path] UTF8String], 0) != PDF_OPEN_ERROR_SUCCESS) {
+        PDSDK_ReleaseDocument(doc);
+        return 0;
+    }
+    int n = doc->GetPageCount();
+    doc->Close(0);
+    PDSDK_ReleaseDocument(doc);
+    return (NSInteger)n;
+}
+
 - (nullable NSArray<NSNumber *> *)clonePageHandlersFrom:(NSInteger)start count:(NSInteger)count {
     if (!_doc || count <= 0) return nil;
     NSMutableArray<NSNumber *> *clones = [NSMutableArray arrayWithCapacity:(NSUInteger)count];

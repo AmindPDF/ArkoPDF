@@ -78,6 +78,9 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     /// 待用户填写链接目标的拖拽结果（触发链接设置弹窗）。
     @Published var pendingLink: LinkDraft?
 
+    /// 页面组织高级操作弹窗（提取/插入/替换）。
+    @Published var pageSheet: PageSheetKind?
+
     /// 当前「定位」的标注（标注面板点击后跳转并高亮描边）。
     @Published var focusedAnnotationID: String?
 
@@ -473,6 +476,73 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
         ))
 
         currentPage = target
+    }
+
+    // MARK: - PPO 高级（提取 / 插入 / 替换页面）
+
+    func showPageSheet(_ kind: PageSheetKind) {
+        pageSheet = kind
+    }
+
+    /// 提取页面到新 PDF（不改当前文档，无撤销）。
+    func extractPages(_ range: PageRange, to url: URL) {
+        let pages = range.resolve(pageCount: pageCount)
+        guard !pages.isEmpty else { return }
+        do {
+            _ = try document?.extractPages(pages.map { NSNumber(value: $0) }, to: url)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// 从源 PDF 插入页面（改变当前文档，含撤销）。
+    func insertPages(from sourceURL: URL, pages: [Int], at index: Int) {
+        guard let doc = document, !pages.isEmpty else { return }
+        let insertAt = index
+        let count = pages.count
+        doc.insertPages(from: sourceURL, pages: pages.map { NSNumber(value: $0) }, at: insertAt)
+
+        // 撤销：删除插入的页；重做：用克隆句柄恢复插入的页
+        let clones = doc.clonePageHandlers(from: insertAt, count: count)
+        if let clones = clones {
+            undoManager.register(UndoItem(
+                description: "插入页面",
+                undo: { ctx in
+                    ctx.performUndoRedo { ctx.document?.deletePages(from: insertAt, count: count) }
+                },
+                redo: { ctx in
+                    ctx.performUndoRedo { ctx.document?.restorePages(withClones: clones, at: insertAt) }
+                },
+                dispose: { ArkoDocument.destroyPageHandlerClones(clones) }
+            ))
+        }
+        currentPage = min(insertAt, max(0, pageCount - 1))
+    }
+
+    /// 替换页面（改变当前文档，含撤销）。
+    func replacePages(from sourceURL: URL, pages: [Int], at start: Int, count: Int) {
+        guard let doc = document, !pages.isEmpty else { return }
+        let clones = doc.clonePageHandlers(from: start, count: count)
+        doc.replacePages(from: sourceURL, pages: pages.map { NSNumber(value: $0) }, at: start, count: count)
+
+        if let clones = clones {
+            undoManager.register(UndoItem(
+                description: "替换页面",
+                undo: { ctx in
+                    ctx.performUndoRedo {
+                        ctx.document?.deletePages(from: start, count: count)
+                        ctx.document?.restorePages(withClones: clones, at: start)
+                    }
+                },
+                redo: { ctx in
+                    ctx.performUndoRedo {
+                        ctx.document?.replacePages(from: sourceURL, pages: pages.map { NSNumber(value: $0) }, at: start, count: count)
+                    }
+                },
+                dispose: { ArkoDocument.destroyPageHandlerClones(clones) }
+            ))
+        }
+        currentPage = min(start, max(0, pageCount - 1))
     }
 
     // MARK: - 文档操作

@@ -65,6 +65,10 @@ private struct ThumbnailCell: View {
                 .disabled(pageIndex == 0)
             Button("下移") { vm.movePage(at: pageIndex, by: 1) }
                 .disabled(pageIndex == vm.pageCount - 1)
+            Divider()
+            Button("提取页面…") { vm.pageSheet = .extract }
+            Button("从文档插入页面…") { vm.pageSheet = .insert }
+            Button("替换页面…") { vm.pageSheet = .replace }
         }
     }
 }

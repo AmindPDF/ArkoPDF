@@ -22,8 +22,17 @@ final class PagesModule: EditorModule {
         let rotate = ActionTool(id: "tool.pageRotate", displayName: "旋转页面", icon: "rotate.right") { context in
             context.rotatePageClockwise90(at: context.currentPageIndex)
         }
+        let extract = ActionTool(id: "tool.pageExtract", displayName: "提取页面", icon: "square.and.arrow.up.on.square") { context in
+            context.showPageSheet(.extract)
+        }
+        let insertFrom = ActionTool(id: "tool.pageInsertFrom", displayName: "从文档插入", icon: "doc.on.doc") { context in
+            context.showPageSheet(.insert)
+        }
+        let replace = ActionTool(id: "tool.pageReplace", displayName: "替换页面", icon: "arrow.triangle.2.circlepath") { context in
+            context.showPageSheet(.replace)
+        }
 
-        tools = [organize, insert, remove, rotate]
+        tools = [organize, insert, remove, rotate, extract, insertFrom, replace]
         activeTool = organize
     }
 }

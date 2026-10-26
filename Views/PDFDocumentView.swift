@@ -27,6 +27,9 @@ struct PDFDocumentView: View {
         .sheet(item: $vm.pendingLink) { draft in
             LinkSettingSheet(draft: draft)
         }
+        .sheet(item: $vm.pageSheet) { kind in
+            PageOrganizerSheet(kind: kind)
+        }
     }
 
     private var placeholder: some View {

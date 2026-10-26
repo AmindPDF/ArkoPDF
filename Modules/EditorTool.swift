@@ -54,6 +54,8 @@ protocol ToolContext: AnyObject {
     func deletePage(at index: Int)
     func rotatePageClockwise90(at index: Int)
     func movePage(at index: Int, by offset: Int)
+    /// 弹出页面组织高级操作（提取/插入/替换）。
+    func showPageSheet(_ kind: PageSheetKind)
 }
 
 /// 工具协议。对应 Windows 的 tool 层。

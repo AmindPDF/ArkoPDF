@@ -13,6 +13,8 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
     ArkoPPOOperationDeletePages,
     ArkoPPOOperationSwapPages,
     ArkoPPOOperationRotatePage,
+    ArkoPPOOperationInsertPages,
+    ArkoPPOOperationReplacePages,
 };
 
 /// PPO 操作通知：在页面操作前后回调，供其它模块释放/重建页引用、同步索引。
@@ -45,6 +47,19 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 - (void)restorePagesWithClones:(NSArray<NSNumber *> *)clones atIndex:(NSInteger)start;
 // 释放页面句柄克隆（撤销项被丢弃时调用）
 + (void)destroyPageHandlerClones:(NSArray<NSNumber *> *)clones;
+
+// 提取页面：把 pages（0-based 页号数组）复制为新文档并保存到 url，不改当前文档。
+- (BOOL)extractPages:(NSArray<NSNumber *> *)pages toURL:(NSURL *)url error:(NSError **)error
+    NS_SWIFT_NAME(extractPages(_:to:));
+// 从源 PDF 插入页面：把源文档的 pages 复制插入到 index 处（改变当前文档）。
+- (void)insertPagesFromURL:(NSURL *)url pages:(NSArray<NSNumber *> *)pages atIndex:(NSInteger)index
+    NS_SWIFT_NAME(insertPages(from:pages:at:));
+// 替换页面：用源文档的 pages 替换当前文档从 start 起的 count 页（改变当前文档）。
+- (void)replacePagesFromURL:(NSURL *)url pages:(NSArray<NSNumber *> *)pages atIndex:(NSInteger)start count:(NSInteger)count
+    NS_SWIFT_NAME(replacePages(from:pages:at:count:));
+
+/// 快速读取某 PDF 的页数（不创建完整文档对象，供插入/替换的源文件选择器用）。
++ (NSInteger)pageCountOfURL:(NSURL *)url NS_SWIFT_NAME(pageCount(of:));
 
 // 大纲（书签树）
 /// 返回 @[@{@"title":NSString, @"level":@int, @"page":@int, @"path":NSArray<NSNumber*>}]（扁平、按树序）。
