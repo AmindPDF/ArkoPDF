@@ -82,7 +82,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var pageSheet: PageSheetKind?
 
     /// 相册排版弹窗。
-    @Published var showPhotoBook = false
+    @Published var isPhotoBookPresented = false
 
     /// 当前「定位」的标注（标注面板点击后跳转并高亮描边）。
     @Published var focusedAnnotationID: String?
@@ -488,7 +488,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     }
 
     func showPhotoBook() {
-        showPhotoBook = true
+        isPhotoBookPresented = true
     }
 
     /// 提取页面到新 PDF（不改当前文档，无撤销）。

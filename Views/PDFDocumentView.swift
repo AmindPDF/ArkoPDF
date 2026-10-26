@@ -30,7 +30,7 @@ struct PDFDocumentView: View {
         .sheet(item: $vm.pageSheet) { kind in
             PageOrganizerSheet(kind: kind)
         }
-        .sheet(isPresented: $vm.showPhotoBook) {
+        .sheet(isPresented: $vm.isPhotoBookPresented) {
             PhotoBookSheet()
         }
     }
