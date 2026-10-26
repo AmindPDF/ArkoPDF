@@ -312,6 +312,8 @@ int main(int argc, const char *argv[]) {
                 if (h && [[p2 linkURIForAnnotHandler:h] isEqualToString:@"https://example.com"]) { foundLink = YES; break; }
             }
             Check(foundLink, "link persisted after save+reopen");
+            // 水印验证（社区版 MODE=0：无 token 保存 → 试用水印）
+            Check([p2 hasTrailmark], "trial watermark present after save");
         }
 
         // 11. 真实样本段落编辑（如果 smoke/fixtures/ 里有 PDF 样本）

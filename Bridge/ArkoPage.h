@@ -144,6 +144,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// 保存前调用：重新序列化页内容（含新增标注）。
 - (void)generateContent;
 
+/// 页面是否存在「试用水印」（trailmark），用于验证 license 水印机制。
+- (BOOL)hasTrailmark;
+
 /// 由 RGB 构造 SDK 颜色（BGR 字节序）。
 + (unsigned int)makeRGBColorWithRed:(uint8_t)r green:(uint8_t)g blue:(uint8_t)b;
 

@@ -719,6 +719,10 @@ static std::wstring ArkoWStringFromNSString(NSString *s) {
     }
 }
 
+- (BOOL)hasTrailmark {
+    return _page ? (_page->ExistTrailmark() != 0) : NO;
+}
+
 + (unsigned int)makeRGBColorWithRed:(uint8_t)r green:(uint8_t)g blue:(uint8_t)b {
     return COLOR_MAKERGB(r, g, b);
 }
