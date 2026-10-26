@@ -118,9 +118,8 @@ static BOOL SmokeWritePNG(CGImageRef img, NSString *path) {
 // ============ 测试流程 ============
 
 static NSString *SmokeParagraphText(ArkoParagraph *para) {
-    NSInteger n = para.caretCount;
-    if (n <= 0) return @"";
-    NSString *s = [para textFromCaret:0 toCaret:n];
+    // -1 表示全文（走 SDK GetText 的 bSelAll 分支），避免 end_caret 越界
+    NSString *s = [para textFromCaret:-1 toCaret:-1];
     return s ? s : @"";
 }
 
@@ -149,15 +148,20 @@ static void SmokeTestParagraphEdit(ArkoDocument *doc, const char *label, BOOL do
 
     if (!doEdit) return;  // 程序化 PDF 只验证 caret 构建（GetText/InsertText 会因标准字体崩）
 
+    Info("[%s] step: read text", label);
     NSString *text = SmokeParagraphText(para);
     Info("[%s] paragraph text length=%lu", label, (unsigned long)text.length);
 
+    Info("[%s] step: getFont", label);
     uint64_t font0 = [para fontHandleAtCaret:0];
     uint64_t font = font0 ? font0 : doc.defaultFontHandle;
+    Info("[%s] step: getFontSize", label);
     float fontSize = [para fontSizeAtCaret:0];
     Info("[%s] font=%llu fontSize=%.1f", label, (unsigned long long)font, fontSize);
+    Info("[%s] step: insertText", label);
     uint64_t h = [para insertText:@"XYZ" atCaret:0 fontHandle:font fontSize:fontSize color:0xFF000000
                             bold:NO italic:NO underline:NO strikeout:NO];
+    Info("[%s] step: insertText done (handle=%llu)", label, (unsigned long long)h);
     NSString *after = SmokeParagraphText(para);
 
     char name[128];
