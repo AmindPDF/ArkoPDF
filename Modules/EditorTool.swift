@@ -56,6 +56,8 @@ protocol ToolContext: AnyObject {
     func movePage(at index: Int, by offset: Int)
     /// 弹出页面组织高级操作（提取/插入/替换）。
     func showPageSheet(_ kind: PageSheetKind)
+    /// 弹出相册排版（PhotoBook）。
+    func showPhotoBook()
 }
 
 /// 工具协议。对应 Windows 的 tool 层。

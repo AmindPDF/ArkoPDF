@@ -14,7 +14,10 @@ final class ToolsModule: EditorModule {
         let print = StubTool(id: "tool.print", displayName: "打印", icon: "printer")
         let ocr = StubTool(id: "tool.ocr", displayName: "OCR", icon: "text.viewfinder")
         let sign = StubTool(id: "tool.signature", displayName: "手写签名", icon: "signature")
-        tools = [compress, print, ocr, sign]
-        activeTool = compress
+        let photoBook = ActionTool(id: "tool.photoBook", displayName: "相册", icon: "photo.on.rectangle.angled") { context in
+            context.showPhotoBook()
+        }
+        tools = [photoBook, compress, print, ocr, sign]
+        activeTool = photoBook
     }
 }
