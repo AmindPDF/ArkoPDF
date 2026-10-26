@@ -153,10 +153,10 @@ static void SmokeTestParagraphEdit(ArkoDocument *doc, const char *label, BOOL do
     Info("[%s] paragraph text length=%lu, before=[%s]", label, (unsigned long)text.length, text.UTF8String);
 
     Info("[%s] step: getFont", label);
-    uint64_t font0 = [para fontHandleAtCaret:0];
+    uint64_t font0 = [para fontHandleAtCaret:1];  // 取插入位置(caret 1)处字符的字体，避免中文字体编码错乱
     uint64_t font = font0 ? font0 : doc.defaultFontHandle;
     Info("[%s] step: getFontSize", label);
-    float fontSize = [para fontSizeAtCaret:0];
+    float fontSize = [para fontSizeAtCaret:1];
     Info("[%s] font=%llu fontSize=%.1f", label, (unsigned long long)font, fontSize);
     Info("[%s] step: insertText", label);
     uint64_t h = [para insertText:@"XYZ" atCaret:1 fontHandle:font fontSize:fontSize color:0xFF000000
