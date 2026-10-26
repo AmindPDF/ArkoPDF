@@ -189,24 +189,36 @@ int main(int argc, const char *argv[]) {
         if (paraCount >= 1) {
             ArkoParagraph *para = [page paragraphAtIndex:0];
             NSString *before = SmokeParagraphText(para);
-            uint64_t font = [para fontHandleAtCaret:0];
-            if (!font) font = doc.defaultFontHandle;
+            uint64_t font0 = [para fontHandleAtCaret:0];
+            uint64_t defFont = doc.defaultFontHandle;
+            Info("para0 fontHandleAtCaret(0)=%llu, defaultFontHandle=%llu, caretCount=%ld, before=[%s]",
+                 (unsigned long long)font0, (unsigned long long)defFont,
+                 (long)para.caretCount, before.UTF8String);
+            uint64_t font = font0 ? font0 : defFont;
+            fflush(stdout);
+
             uint64_t h = [para insertText:@"XYZ" atCaret:0 fontHandle:font fontSize:24 color:0xFF000000
                                     bold:NO italic:NO underline:NO strikeout:NO];
+            Info("insertText returned handle=%llu (font=%llu)", (unsigned long long)h, (unsigned long long)font);
+            fflush(stdout);
+
             NSString *after = SmokeParagraphText(para);
+            Info("after insert = [%s]", after.UTF8String);
+            fflush(stdout);
             Check(h != 0 && [after containsString:@"XYZ"], "paragraph insert text");
 
-            // 撤销 / 重做
-            [page paraUndoItem:h];
-            Check(![SmokeParagraphText(para) containsString:@"XYZ"], "paragraph undo restores text");
-            [page paraRedoItem:h];
-            Check([SmokeParagraphText(para) containsString:@"XYZ"], "paragraph redo re-inserts text");
-            [ArkoParagraph releaseUndoItem:h];
+            // 撤销 / 重做 / 删除：仅在 insertText 成功后执行，避免在损坏状态上继续操作
+            if (h != 0) {
+                [page paraUndoItem:h];
+                Check(![SmokeParagraphText(para) containsString:@"XYZ"], "paragraph undo restores text");
+                [page paraRedoItem:h];
+                Check([SmokeParagraphText(para) containsString:@"XYZ"], "paragraph redo re-inserts text");
+                [ArkoParagraph releaseUndoItem:h];
 
-            // 删除一段文字
-            uint64_t dh = [para deleteTextFromCaret:0 toCaret:3];
-            Check(dh != 0, "paragraph delete text");
-            if (dh) [ArkoParagraph releaseUndoItem:dh];
+                uint64_t dh = [para deleteTextFromCaret:0 toCaret:3];
+                Check(dh != 0, "paragraph delete text");
+                if (dh) [ArkoParagraph releaseUndoItem:dh];
+            }
         } else {
             Info("paragraph analysis found no paragraph in programmatic pdf — paragraph edit path skipped "
                  "(use --pdf with a real text pdf to exercise it)");
