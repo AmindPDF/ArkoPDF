@@ -73,6 +73,11 @@ typedef NS_ENUM(NSInteger, ArkoParaUndoType) {
 - (BOOL)isStrikeoutAtCaret:(NSInteger)caret;
 /// 当前 caret 处的字体句柄（编辑已有段落时复用该字体，保证字形/编码一致）。
 - (unsigned long long)fontHandleAtCaret:(NSInteger)caret;
+/// 为插入 text 选择合适字体（参考 Windows GetFont）：caret 处字体若支持首字符则用，
+/// 否则用 defaultFont（完整字体）。用于避免子集字体不含新字符导致乱码。
+- (unsigned long long)fontHandleForInsertingText:(NSString *)text
+                                         atCaret:(NSInteger)caret
+                                     defaultFont:(unsigned long long)defaultFont;
 
 // ---- 撤销项工厂（全局；Undo/Redo 由 ArkoPage 携带 analyser 调用）----
 + (unsigned long long)createUndoItemOfType:(NSInteger)undoType;

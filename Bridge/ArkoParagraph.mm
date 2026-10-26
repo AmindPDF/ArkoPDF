@@ -274,6 +274,30 @@ static int ArkoUnderlineStrikeout(BOOL underline, BOOL strikeout) {
     return (unsigned long long)(uintptr_t)font;
 }
 
+- (unsigned long long)fontHandleForInsertingText:(NSString *)text
+                                         atCaret:(NSInteger)caret
+                                     defaultFont:(unsigned long long)defaultFont {
+    if (!_para || text.length == 0) return defaultFont;
+
+    // 取首字符的 UTF-32（macOS 上 wchar_t 为 32 位）
+    unichar hi = [text characterAtIndex:0];
+    wchar_t ch = (wchar_t)hi;
+    if (CFStringIsSurrogateHighCharacter(hi) && text.length >= 2) {
+        unichar lo = [text characterAtIndex:1];
+        if (CFStringIsSurrogateLowCharacter(lo)) {
+            ch = (wchar_t)CFStringGetLongCharacterForSurrogatePair(hi, lo);
+        }
+    }
+
+    // caret 处字体若支持该字符则直接复用（参考 Windows GetFont 的 IsCharExist 判断）
+    IPDF_Font *curFont = _para->GetFont((int)caret);
+    if (curFont && curFont->IsCharExist(ch)) {
+        return (unsigned long long)(uintptr_t)curFont;
+    }
+    // 否则用完整默认字体（子集字体不含新字符会乱码）
+    return defaultFont;
+}
+
 #pragma mark - 撤销项工厂
 
 + (unsigned long long)createUndoItemOfType:(NSInteger)undoType {

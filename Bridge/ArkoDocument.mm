@@ -110,11 +110,11 @@
     if (_defaultFont) {
         return (unsigned long long)(uintptr_t)_defaultFont;
     }
-    // 优先系统中文字体（支持中文输入），回退拉丁字体。
+    // 优先拉丁完整字体（子集嵌入字体不含新字符时插入会乱码），回退中文字体。
     struct { NSString *name; int charset; } candidates[] = {
+        {@"Helvetica",   PDSDK_FONT_ANSI_CHARSET},
         {@"PingFang SC", PDSDK_FONT_GB2312_CHARSET},
         {@"Heiti SC",    PDSDK_FONT_GB2312_CHARSET},
-        {@"Helvetica",   PDSDK_FONT_ANSI_CHARSET},
     };
     int n = (int)(sizeof(candidates) / sizeof(candidates[0]));
     for (int i = 0; i < n; i++) {

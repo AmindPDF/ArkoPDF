@@ -78,8 +78,9 @@ extension PDFEditorViewModel {
             caret = para.currentCaret
         }
 
-        let currentFont = para.fontHandle(atCaret: caret)
-        let font: UInt64 = currentFont != 0 ? currentFont : (document?.defaultFontHandle ?? 0)
+        // 按插入字符选择字体：caret 处字体若支持该字符则复用，否则用完整默认字体（参考 Windows GetFont）
+        let font = para.fontHandle(forInsertingText: text, atCaret: caret,
+                                   defaultFont: document?.defaultFontHandle ?? 0)
         let handle = para.insertText(text, atCaret: caret, fontHandle: font,
                                      fontSize: sel.fontSize, color: sel.textColor,
                                      bold: sel.isBold, italic: sel.isItalic,
