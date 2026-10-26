@@ -57,4 +57,5 @@ jobs:
           path: |
             ./smoke_page0.png
             ./smoke_output.pdf
+            ./smoke_export.jpg
           if-no-files-found: warn
