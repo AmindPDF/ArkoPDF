@@ -125,7 +125,8 @@ static NSString *SmokeParagraphText(ArkoParagraph *para) {
 }
 
 // 段落编辑深度测试：插入 / 撤销 / 重做 / 删除。对空段落（无 caret）自动跳过。
-static void SmokeTestParagraphEdit(ArkoDocument *doc, const char *label) {
+// doEdit=NO 时只验证 caret 构建 + 读文本（程序化 PDF 的段落没有嵌入字体，InsertText 会崩）。
+static void SmokeTestParagraphEdit(ArkoDocument *doc, const char *label, BOOL doEdit) {
     if (!doc || doc.pageCount == 0) return;
     ArkoPage *page = [doc pageAtIndex:0];
     NSInteger paraCount = page.paragraphCount;
@@ -146,9 +147,14 @@ static void SmokeTestParagraphEdit(ArkoDocument *doc, const char *label) {
     }
     Info("[%s] using paragraph index %ld (caretCount=%ld)", label, (long)usedIndex, (long)para.caretCount);
 
+    NSString *text = SmokeParagraphText(para);
+    Info("[%s] paragraph text length=%lu", label, (unsigned long)text.length);
+    if (!doEdit) return;
+
     uint64_t font0 = [para fontHandleAtCaret:0];
     uint64_t font = font0 ? font0 : doc.defaultFontHandle;
     float fontSize = [para fontSizeAtCaret:0];
+    Info("[%s] font=%llu fontSize=%.1f", label, (unsigned long long)font, fontSize);
     uint64_t h = [para insertText:@"XYZ" atCaret:0 fontHandle:font fontSize:fontSize color:0xFF000000
                             bold:NO italic:NO underline:NO strikeout:NO];
     NSString *after = SmokeParagraphText(para);
@@ -232,7 +238,7 @@ int main(int argc, const char *argv[]) {
         Check(page.annotCount >= 1, "added highlight annotation");
 
         // 6. 段落编辑（依赖段落分析器；程序化 PDF 段落为空则自动跳过）
-        SmokeTestParagraphEdit(doc, "programmatic");
+        SmokeTestParagraphEdit(doc, "programmatic", NO);
 
         // 7. 添加文字/段落
         {
@@ -317,7 +323,7 @@ int main(int argc, const char *argv[]) {
             if (samplePDF) {
                 ArkoDocument *sdoc = [[ArkoDocument alloc] initWithURL:[NSURL fileURLWithPath:samplePDF] error:&err];
                 Check(sdoc != nil, "open fixture sample pdf");
-                SmokeTestParagraphEdit(sdoc, "sample");
+                SmokeTestParagraphEdit(sdoc, "sample", YES);
                 // 不 close，_exit 回收
             } else {
                 Info("no fixture sample in smoke/fixtures/ — real-text paragraph edit not exercised");
