@@ -532,6 +532,11 @@ static std::wstring ArkoWStringFromNSString(NSString *s) {
     return (unsigned long long)(uintptr_t)clone;
 }
 
+- (unsigned long long)pageObjectHandlerAtIndex:(NSInteger)index {
+    IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    return (unsigned long long)(uintptr_t)obj;
+}
+
 + (void)releasePageObjectClone:(unsigned long long)clone {
     IPDF_PageObject *obj = (IPDF_PageObject *)(uintptr_t)clone;
     if (obj) obj->Release();
@@ -556,6 +561,13 @@ static std::wstring ArkoWStringFromNSString(NSString *s) {
 
 - (void)deletePageObjectAtIndex:(NSInteger)index {
     IPDF_PageObject *obj = [self sdkPageObjectAtIndex:index];
+    if (obj) {
+        _page->DeletePageObject(obj);
+    }
+}
+
+- (void)deletePageObjectByHandler:(unsigned long long)handler {
+    IPDF_PageObject *obj = (IPDF_PageObject *)(uintptr_t)handler;
     if (obj) {
         _page->DeletePageObject(obj);
     }

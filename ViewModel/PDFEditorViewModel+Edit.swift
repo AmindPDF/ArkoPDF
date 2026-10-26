@@ -5,6 +5,12 @@
 import AppKit
 import UniformTypeIdentifiers
 
+/// 可变的页面对象句柄（撤销/重做闭包间共享，避免 index 漂移删错对象）。
+private final class ObjHandle {
+    var value: UInt64
+    init(_ v: UInt64) { self.value = v }
+}
+
 extension PDFEditorViewModel {
 
     // MARK: - 段落 / 文字
@@ -267,15 +273,24 @@ extension PDFEditorViewModel {
                                 width: w, height: h, alpha: 1.0)
         guard idx >= 0 else { return }
 
+        let handler = ObjHandle(page.pageObjectHandler(at: idx))
         let clone = page.clonePageObject(at: idx)
         if clone != 0 {
             undoManager.register(UndoItem(
                 description: "添加图片",
                 undo: { ctx in
-                    ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.deletePageObject(at: idx) }
+                    ctx.performUndoRedo {
+                        if handler.value != 0 {
+                            ctx.document?.page(at: pageIndex)?.deletePageObject(byHandler: handler.value)
+                            handler.value = 0
+                        }
+                    }
                 },
                 redo: { ctx in
-                    ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.addPageObjectClone(clone, atZOrder: idx) }
+                    ctx.performUndoRedo {
+                        ctx.document?.page(at: pageIndex)?.addPageObjectClone(clone, atZOrder: idx)
+                        handler.value = ctx.document?.page(at: pageIndex)?.pageObjectHandler(at: idx) ?? 0
+                    }
                 },
                 dispose: { ArkoPage.releasePageObjectClone(clone) }
             ))
@@ -412,6 +427,7 @@ extension PDFEditorViewModel {
 
     private func deleteImageObject(pageIndex: Int, idx: Int) {
         guard let page = document?.page(at: pageIndex) else { return }
+        let handler = ObjHandle(page.pageObjectHandler(at: idx))
         let clone = page.clonePageObject(at: idx)
         page.deletePageObject(at: idx)
         imageSelection = nil
@@ -419,10 +435,18 @@ extension PDFEditorViewModel {
             undoManager.register(UndoItem(
                 description: "删除图片",
                 undo: { ctx in
-                    ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.addPageObjectClone(clone, atZOrder: idx) }
+                    ctx.performUndoRedo {
+                        ctx.document?.page(at: pageIndex)?.addPageObjectClone(clone, atZOrder: idx)
+                        handler.value = ctx.document?.page(at: pageIndex)?.pageObjectHandler(at: idx) ?? 0
+                    }
                 },
                 redo: { ctx in
-                    ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.deletePageObject(at: idx) }
+                    ctx.performUndoRedo {
+                        if handler.value != 0 {
+                            ctx.document?.page(at: pageIndex)?.deletePageObject(byHandler: handler.value)
+                            handler.value = 0
+                        }
+                    }
                 },
                 dispose: { ArkoPage.releasePageObjectClone(clone) }
             ))

@@ -95,6 +95,10 @@ NS_ASSUME_NONNULL_BEGIN
 // 对象克隆（撤销/重做用；clone 句柄由 +releasePageObjectClone: 释放）
 - (unsigned long long)clonePageObjectAtIndex:(NSInteger)index;
 + (void)releasePageObjectClone:(unsigned long long)clone NS_SWIFT_NAME(releasePageObjectClone(_:));
+/// 页面对象句柄（IPDF_PageObject*，身份追踪用，不受 z-order 漂移影响）。
+- (unsigned long long)pageObjectHandlerAtIndex:(NSInteger)index NS_SWIFT_NAME(pageObjectHandler(at:));
+/// 按句柄删除对象（精确删除，避免 index 漂移）。
+- (void)deletePageObjectByHandler:(unsigned long long)handler NS_SWIFT_NAME(deletePageObject(byHandler:));
 /// 撤销删除/新建：把克隆对象（内部再次 Clone）按 zOrder 加入页。
 - (void)addPageObjectClone:(unsigned long long)clone atZOrder:(NSInteger)zOrder
     NS_SWIFT_NAME(addPageObjectClone(_:atZOrder:));
