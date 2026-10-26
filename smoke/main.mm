@@ -150,7 +150,7 @@ static void SmokeTestParagraphEdit(ArkoDocument *doc, const char *label, BOOL do
 
     Info("[%s] step: read text", label);
     NSString *text = SmokeParagraphText(para);
-    Info("[%s] paragraph text length=%lu", label, (unsigned long)text.length);
+    Info("[%s] paragraph text length=%lu, before=[%s]", label, (unsigned long)text.length, text.UTF8String);
 
     Info("[%s] step: getFont", label);
     uint64_t font0 = [para fontHandleAtCaret:0];
@@ -159,10 +159,11 @@ static void SmokeTestParagraphEdit(ArkoDocument *doc, const char *label, BOOL do
     float fontSize = [para fontSizeAtCaret:0];
     Info("[%s] font=%llu fontSize=%.1f", label, (unsigned long long)font, fontSize);
     Info("[%s] step: insertText", label);
-    uint64_t h = [para insertText:@"XYZ" atCaret:0 fontHandle:font fontSize:fontSize color:0xFF000000
+    uint64_t h = [para insertText:@"XYZ" atCaret:1 fontHandle:font fontSize:fontSize color:0xFF000000
                             bold:NO italic:NO underline:NO strikeout:NO];
     Info("[%s] step: insertText done (handle=%llu)", label, (unsigned long long)h);
     NSString *after = SmokeParagraphText(para);
+    Info("[%s] after=[%s]", label, after.UTF8String);
 
     char name[128];
     snprintf(name, sizeof(name), "[%s] paragraph insert text", label);
