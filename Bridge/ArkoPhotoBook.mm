@@ -1,6 +1,7 @@
 //  ArkoPhotoBook.mm
 
 #import "ArkoPhotoBook.h"
+#import <AppKit/AppKit.h>
 #include "ipdf_base.h"
 #include "ipdf_photobook.h"
 #include "ipdf_document.h"
