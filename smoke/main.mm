@@ -134,12 +134,17 @@ static void SmokeTestParagraphEdit(ArkoDocument *doc, const char *label) {
         Info("[%s] no paragraph recognized — edit path skipped", label);
         return;
     }
-    ArkoParagraph *para = [page paragraphAtIndex:0];
-    Info("[%s] para0 caretCount=%ld", label, (long)para.caretCount);
-    if (para.caretCount <= 0) {
-        Info("[%s] paragraph has no text/carets — edit path skipped (use a real text pdf)", label);
+    ArkoParagraph *para = nil;
+    NSInteger usedIndex = -1;
+    for (NSInteger i = 0; i < paraCount; i++) {
+        ArkoParagraph *p = [page paragraphAtIndex:i];
+        if (p && p.caretCount > 0) { para = p; usedIndex = i; break; }
+    }
+    if (!para) {
+        Info("[%s] no paragraph with text/carets found — edit path skipped (use a real text pdf)", label);
         return;
     }
+    Info("[%s] using paragraph index %ld (caretCount=%ld)", label, (long)usedIndex, (long)para.caretCount);
 
     uint64_t font0 = [para fontHandleAtCaret:0];
     uint64_t font = font0 ? font0 : doc.defaultFontHandle;

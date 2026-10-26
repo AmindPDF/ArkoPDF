@@ -14,7 +14,20 @@
         return nil;
     }
     _para = (IPDF_Paragraph *)para;
+    [self buildCaretsIfNeeded];
     return self;
+}
+
+/// SDK 的 caret 列表是懒构建的：必须 GetCaretAt 传入段落内一个点，命中某行后才触发
+/// BuildCarets()（CountCarets/GetSelBox 等查询在未构建时返回 0/空）。用 bbox 中心点触发。
+- (void)buildCaretsIfNeeded {
+    if (!_para) return;
+    PDSDK_FloatBox box;
+    _para->GetBBox(&box);
+    PDSDK_FloatPoint pt;
+    pt.x = (box.left_bottom_x + box.right_top_x) * 0.5f;
+    pt.y = (box.left_bottom_y + box.right_top_y) * 0.5f;
+    _para->GetCaretAt(&pt);
 }
 
 #pragma mark - 工具
@@ -66,7 +79,9 @@ static int ArkoUnderlineStrikeout(BOOL underline, BOOL strikeout) {
 #pragma mark - 命中 / 选区
 
 - (NSInteger)caretCount {
-    return _para ? (NSInteger)_para->CountCarets() : 0;
+    if (!_para) return 0;
+    [self buildCaretsIfNeeded];
+    return (NSInteger)_para->CountCarets();
 }
 
 - (NSInteger)caretAtPointX:(CGFloat)x y:(CGFloat)y {
