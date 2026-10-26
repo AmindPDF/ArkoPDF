@@ -70,23 +70,32 @@ struct PhotoBookSheet: View {
     @State private var spaceMM: Double = 3
     @State private var viewMode: PhotoViewMode = .grid
     @State private var isSaving = false
+    @State private var saveProgress: Double = 0
 
     private var perPage: Int { layout.cols * layout.rows }
     private var pageCount: Int { max(1, Int(ceil(Double(photos.count) / Double(perPage)))) }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
-            HStack(spacing: 0) {
-                controlPanel
+        ZStack {
+            VStack(spacing: 0) {
+                header
                 Divider()
-                previewPane
+                HStack(spacing: 0) {
+                    controlPanel
+                    Divider()
+                    previewPane
+                }
+                Divider()
+                statusBar
             }
-            Divider()
-            statusBar
+            .frame(minWidth: 900, minHeight: 620)
+
+            if isSaving {
+                SaveProgressOverlay(title: "正在生成相册…",
+                                    progress: saveProgress,
+                                    isCancelable: false) {}
+            }
         }
-        .frame(minWidth: 900, minHeight: 620)
     }
 
     // MARK: 顶部
@@ -420,6 +429,7 @@ struct PhotoBookSheet: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         isSaving = true
+        saveProgress = 0
         DispatchQueue.global(qos: .userInitiated).async {
             let book = ArkoPhotoBook()
             book.setPaperWidth(Float(paper.widthMM * mmToPt), height: Float(paper.heightMM * mmToPt))
@@ -432,7 +442,9 @@ struct PhotoBookSheet: View {
             }
             var result: Result<Void, Error> = .success(())
             do {
-                _ = try book.buildAndSave(to: url)
+                _ = try book.buildAndSave(to: url, progress: { p in
+                    DispatchQueue.main.async { saveProgress = Double(p) }
+                }, isCancelled: nil)
             } catch {
                 result = .failure(error)
             }

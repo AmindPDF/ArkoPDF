@@ -84,6 +84,12 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     /// 相册排版弹窗。
     @Published var isPhotoBookPresented = false
 
+    /// 保存进度状态（SaveProgressOverlay 用）。
+    @Published var isSaving = false
+    @Published var saveProgress: Double = 0
+    @Published var saveTitle: String = "保存…"
+    private let saveCancelFlag = SaveCancelFlag()
+
     /// 当前「定位」的标注（标注面板点击后跳转并高亮描边）。
     @Published var focusedAnnotationID: String?
 
@@ -576,11 +582,30 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
 
     func save(to url: URL) {
         guard let doc = document else { return }
-        do {
-            _ = try doc.save(to: url)
-        } catch {
-            lastError = error.localizedDescription
+        isSaving = true
+        saveProgress = 0
+        saveTitle = "保存…"
+        saveCancelFlag.isCancelled = false
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            do {
+                _ = try doc.save(to: url, progress: { p in
+                    DispatchQueue.main.async { self.saveProgress = Double(p) }
+                }, isCancelled: { [weak self] in
+                    self?.saveCancelFlag.isCancelled ?? false
+                })
+                DispatchQueue.main.async { self.isSaving = false }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isSaving = false
+                    self.lastError = error.localizedDescription
+                }
+            }
         }
+    }
+
+    func cancelSave() {
+        saveCancelFlag.isCancelled = true
     }
 
     func close() {

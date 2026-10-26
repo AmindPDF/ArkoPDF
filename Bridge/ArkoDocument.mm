@@ -8,6 +8,7 @@
 #include "ipdf_page.h"
 #include "ipdf_pageprocess.h"
 #include "ipdf_bookmark.h"
+#include "ArkoSaveProgress.h"
 
 @interface ArkoDocument ()
 - (void)collectOutline:(IPDF_BookmarkTree *)tree parent:(IPDF_Bookmark *)parent level:(int)level path:(NSMutableArray *)path into:(NSMutableArray *)items;
@@ -70,7 +71,7 @@
     return _pages[(NSUInteger)index];
 }
 
-- (BOOL)saveToURL:(NSURL *)url error:(NSError **)error {
+- (BOOL)saveToURL:(NSURL *)url progress:(void (^)(float))progress isCancelled:(BOOL (^)(void))isCancelled error:(NSError **)error {
     if (!_doc) {
         return NO;
     }
@@ -89,7 +90,17 @@
         return NO;
     }
     creator->Init(_doc, PDF_CREATE_NO_ORIGINAL);
-    int ret = creator->Create([[url path] UTF8String], NULL, NULL);
+
+    ArkoProgressSink *sink = nil;
+    if (progress || isCancelled) {
+        sink = [[ArkoProgressSink alloc] init];
+        sink.onProgress = progress;
+        sink.onCancel = isCancelled;
+    }
+    ArkoSavePause pause;
+    ArkoSaveProgress prog;
+    prog.sink = sink;
+    int ret = creator->Create([[url path] UTF8String], &pause, &prog);
     creator->Release();
     if (!ret) {
         if (error) {

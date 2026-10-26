@@ -293,7 +293,7 @@ int main(int argc, const char *argv[]) {
 
         // 10. 保存 + 重开，验证持久化
         NSString *savePath = [cwd stringByAppendingPathComponent:@"smoke_output.pdf"];
-        Check([doc saveToURL:[NSURL fileURLWithPath:savePath] error:&err], "save edited document");
+        Check([doc saveToURL:[NSURL fileURLWithPath:savePath] progress:nil isCancelled:nil error:&err], "save edited document");
         unsigned long long size = [[[NSFileManager defaultManager] attributesOfItemAtPath:savePath error:&err] fileSize];
         Check(size > 0, "saved file non-empty");
 

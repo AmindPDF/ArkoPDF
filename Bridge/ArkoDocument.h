@@ -33,7 +33,10 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 - (nullable instancetype)initWithURL:(NSURL *)url error:(NSError **)error;
 @property (nonatomic, readonly) NSInteger pageCount;
 - (nullable ArkoPage *)pageAtIndex:(NSInteger)index;
-- (BOOL)saveToURL:(NSURL *)url error:(NSError **)error;
+- (BOOL)saveToURL:(NSURL *)url
+         progress:(nullable void (^)(float))progress
+       isCancelled:(nullable BOOL (^)(void))isCancelled
+            error:(NSError **)error NS_SWIFT_NAME(save(to:progress:isCancelled:));
 - (void)close;
 
 // 页面组织（PPO）：每次操作前后会通过 ppoDelegate 发通知，内部重建页缓存

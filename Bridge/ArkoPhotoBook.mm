@@ -4,6 +4,7 @@
 #include "ipdf_base.h"
 #include "ipdf_photobook.h"
 #include "ipdf_document.h"
+#include "ArkoSaveProgress.h"
 
 @implementation ArkoPhotoBook {
     IPDF_PhotoBookCreator *_creator;
@@ -44,7 +45,7 @@
     [_pixels addObject:[NSValue valueWithCGSize:CGSizeMake((CGFloat)w, (CGFloat)h)]];
 }
 
-- (BOOL)buildAndSaveToURL:(NSURL *)url error:(NSError **)error {
+- (BOOL)buildAndSaveToURL:(NSURL *)url progress:(void (^)(float))progress isCancelled:(BOOL (^)(void))isCancelled error:(NSError **)error {
     if (!_creator) {
         if (error) {
             *error = [NSError errorWithDomain:@"ArkoPDF.SDK" code:-1
@@ -75,7 +76,17 @@
     IPDF_Creator *c = PDSDK_NewCreator();
     if (c) {
         c->Init(doc, PDF_CREATE_NO_ORIGINAL);
-        ok = c->Create([[url path] UTF8String], NULL, NULL) != 0;
+
+        ArkoProgressSink *sink = nil;
+        if (progress || isCancelled) {
+            sink = [[ArkoProgressSink alloc] init];
+            sink.onProgress = progress;
+            sink.onCancel = isCancelled;
+        }
+        ArkoSavePause pause;
+        ArkoSaveProgress prog;
+        prog.sink = sink;
+        ok = c->Create([[url path] UTF8String], &pause, &prog) != 0;
         c->Release();
     }
     PDSDK_ReleaseDocument(doc);

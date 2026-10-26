@@ -23,7 +23,12 @@ NS_ASSUME_NONNULL_BEGIN
     NS_SWIFT_NAME(addImage(atPath:pixelWidth:pixelHeight:));
 
 /// 生成相册并保存到 url（内部 BuildPhotoBook + 保存）。失败填 error。
-- (BOOL)buildAndSaveToURL:(NSURL *)url error:(NSError **)error NS_SWIFT_NAME(buildAndSave(to:));
+/// @param progress 保存进度回调（0.0~1.0，在保存线程调用，注意派发到主线程更新 UI）。
+/// @param isCancelled 返回 YES 表示取消保存（可为 nil 表示不可取消）。
+- (BOOL)buildAndSaveToURL:(NSURL *)url
+                 progress:(nullable void (^)(float))progress
+               isCancelled:(nullable BOOL (^)(void))isCancelled
+                    error:(NSError **)error NS_SWIFT_NAME(buildAndSave(to:progress:isCancelled:));
 
 @end
 

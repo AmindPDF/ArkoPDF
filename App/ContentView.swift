@@ -7,16 +7,25 @@ struct ContentView: View {
     @EnvironmentObject var vm: PDFEditorViewModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            ToolbarView()
-            Divider()
-            HSplitView {
-                SidebarView()
-                PDFDocumentView()
+        ZStack {
+            VStack(spacing: 0) {
+                ToolbarView()
+                Divider()
+                HSplitView {
+                    SidebarView()
+                    PDFDocumentView()
+                }
+                Divider()
+                StatusBarView()
             }
-            Divider()
-            StatusBarView()
+            .frame(minWidth: 960, minHeight: 640)
+
+            // 保存进度覆盖层
+            if vm.isSaving {
+                SaveProgressOverlay(title: vm.saveTitle,
+                                    progress: vm.saveProgress,
+                                    isCancelable: true) { vm.cancelSave() }
+            }
         }
-        .frame(minWidth: 960, minHeight: 640)
     }
 }
