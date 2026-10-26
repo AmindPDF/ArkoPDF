@@ -124,6 +124,49 @@ static NSString *SmokeParagraphText(ArkoParagraph *para) {
     return s ? s : @"";
 }
 
+// 段落编辑深度测试：插入 / 撤销 / 重做 / 删除。对空段落（无 caret）自动跳过。
+static void SmokeTestParagraphEdit(ArkoDocument *doc, const char *label) {
+    if (!doc || doc.pageCount == 0) return;
+    ArkoPage *page = [doc pageAtIndex:0];
+    NSInteger paraCount = page.paragraphCount;
+    Info("[%s] paragraphCount = %ld", label, (long)paraCount);
+    if (paraCount < 1) {
+        Info("[%s] no paragraph recognized — edit path skipped", label);
+        return;
+    }
+    ArkoParagraph *para = [page paragraphAtIndex:0];
+    Info("[%s] para0 caretCount=%ld", label, (long)para.caretCount);
+    if (para.caretCount <= 0) {
+        Info("[%s] paragraph has no text/carets — edit path skipped (use a real text pdf)", label);
+        return;
+    }
+
+    uint64_t font0 = [para fontHandleAtCaret:0];
+    uint64_t font = font0 ? font0 : doc.defaultFontHandle;
+    float fontSize = [para fontSizeAtCaret:0];
+    uint64_t h = [para insertText:@"XYZ" atCaret:0 fontHandle:font fontSize:fontSize color:0xFF000000
+                            bold:NO italic:NO underline:NO strikeout:NO];
+    NSString *after = SmokeParagraphText(para);
+
+    char name[128];
+    snprintf(name, sizeof(name), "[%s] paragraph insert text", label);
+    Check(h != 0 && [after containsString:@"XYZ"], name);
+    if (h != 0) {
+        [page paraUndoItem:h];
+        snprintf(name, sizeof(name), "[%s] paragraph undo restores text", label);
+        Check(![SmokeParagraphText(para) containsString:@"XYZ"], name);
+        [page paraRedoItem:h];
+        snprintf(name, sizeof(name), "[%s] paragraph redo re-inserts text", label);
+        Check([SmokeParagraphText(para) containsString:@"XYZ"], name);
+        [ArkoParagraph releaseUndoItem:h];
+
+        uint64_t dh = [para deleteTextFromCaret:0 toCaret:3];
+        snprintf(name, sizeof(name), "[%s] paragraph delete text", label);
+        Check(dh != 0, name);
+        if (dh) [ArkoParagraph releaseUndoItem:dh];
+    }
+}
+
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
         setvbuf(stdout, NULL, _IONBF, 0);
@@ -183,46 +226,8 @@ int main(int argc, const char *argv[]) {
                            color:[ArkoPage makeRGBColorWithRed:255 green:214 blue:10] opacity:0.8f];
         Check(page.annotCount >= 1, "added highlight annotation");
 
-        // 6. 段落编辑（依赖段落分析器；程序化 PDF 若识别不出段落则跳过）
-        NSInteger paraCount = page.paragraphCount;
-        Info("paragraphCount = %ld", (long)paraCount);
-        if (paraCount >= 1) {
-            ArkoParagraph *para = [page paragraphAtIndex:0];
-            uint64_t font0 = [para fontHandleAtCaret:0];
-            uint64_t defFont = doc.defaultFontHandle;
-            Info("para0 caretCount=%ld, fontHandleAtCaret(0)=%llu, defaultFontHandle=%llu",
-                 (long)para.caretCount, (unsigned long long)font0, (unsigned long long)defFont);
-            if (para.caretCount > 0) {
-                NSString *before = SmokeParagraphText(para);
-                uint64_t font = font0 ? font0 : defFont;
-                fflush(stdout);
-                uint64_t h = [para insertText:@"XYZ" atCaret:0 fontHandle:font fontSize:24 color:0xFF000000
-                                        bold:NO italic:NO underline:NO strikeout:NO];
-                Info("insertText returned handle=%llu", (unsigned long long)h);
-                fflush(stdout);
-                NSString *after = SmokeParagraphText(para);
-                Check(h != 0 && [after containsString:@"XYZ"], "paragraph insert text");
-
-                // 撤销 / 重做 / 删除：仅在 insertText 成功后执行，避免在损坏状态上继续操作
-                if (h != 0) {
-                    [page paraUndoItem:h];
-                    Check(![SmokeParagraphText(para) containsString:@"XYZ"], "paragraph undo restores text");
-                    [page paraRedoItem:h];
-                    Check([SmokeParagraphText(para) containsString:@"XYZ"], "paragraph redo re-inserts text");
-                    [ArkoParagraph releaseUndoItem:h];
-
-                    uint64_t dh = [para deleteTextFromCaret:0 toCaret:3];
-                    Check(dh != 0, "paragraph delete text");
-                    if (dh) [ArkoParagraph releaseUndoItem:dh];
-                }
-            } else {
-                Info("programmatic pdf paragraph has no text/carets — paragraph edit path skipped "
-                     "(use --pdf with a real text pdf to exercise it)");
-            }
-        } else {
-            Info("paragraph analysis found no paragraph in programmatic pdf — paragraph edit path skipped "
-                 "(use --pdf with a real text pdf to exercise it)");
-        }
+        // 6. 段落编辑（依赖段落分析器；程序化 PDF 段落为空则自动跳过）
+        SmokeTestParagraphEdit(doc, "programmatic");
 
         // 7. 添加文字/段落
         {
@@ -291,6 +296,27 @@ int main(int argc, const char *argv[]) {
                 if (h && [[p2 linkURIForAnnotHandler:h] isEqualToString:@"https://example.com"]) { foundLink = YES; break; }
             }
             Check(foundLink, "link persisted after save+reopen");
+        }
+
+        // 11. 真实样本段落编辑（如果 smoke/fixtures/ 里有 PDF 样本）
+        {
+            NSString *fixturesDir = [cwd stringByAppendingPathComponent:@"smoke/fixtures"];
+            NSArray *files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:fixturesDir error:&err];
+            NSString *samplePDF = nil;
+            for (NSString *f in files) {
+                if ([f.pathExtension.lowercaseString isEqualToString:@"pdf"]) {
+                    samplePDF = [fixturesDir stringByAppendingPathComponent:f];
+                    break;
+                }
+            }
+            if (samplePDF) {
+                ArkoDocument *sdoc = [[ArkoDocument alloc] initWithURL:[NSURL fileURLWithPath:samplePDF] error:&err];
+                Check(sdoc != nil, "open fixture sample pdf");
+                SmokeTestParagraphEdit(sdoc, "sample");
+                // 不 close，_exit 回收
+            } else {
+                Info("no fixture sample in smoke/fixtures/ — real-text paragraph edit not exercised");
+            }
         }
 
         // 不调用 close/unload，直接 _exit 跳过析构：analyser 的释放（close/unload 触发）
