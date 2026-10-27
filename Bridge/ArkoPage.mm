@@ -359,18 +359,6 @@
     IPDF_Font *font = (IPDF_Font *)(uintptr_t)fontHandle;
     if (!font) return;
 
-    // 粗略估算文字宽度（半宽近似，用于居中/右对齐）
-    float textW = fontSize * 0.55f * (float)text.length;
-    float x = 0;
-    if (align == 0) {
-        x = (float)CGRectGetMinX(rect) + 3;
-    } else if (align == 2) {
-        x = (float)CGRectGetMaxX(rect) - textW - 3;
-    } else {
-        x = (float)(CGRectGetMidX(rect) - textW / 2.0f);
-    }
-    float y = (float)(CGRectGetMidY(rect) - fontSize * 0.35f);
-
     // NSString → wchar_t（macOS wchar_t 为 32 位，BMP 字符直接取 UTF-16 码元）
     NSUInteger len = text.length;
     wchar_t *wbuf = (wchar_t *)malloc(sizeof(wchar_t) * (len + 1));
@@ -379,8 +367,29 @@
         wbuf[i] = (wchar_t)[text characterAtIndex:i];
     }
     wbuf[len] = 0;
-    _page->AddText(wbuf, x, y, font, fontSize, color);
+
+    // 先在 (0,0) 添加文字测量精确 bbox，再平移到目标位置（精确居中/对齐）
+    IPDF_PageObject *obj = _page->AddText(wbuf, 0, 0, font, fontSize, color);
     free(wbuf);
+    if (!obj) return;
+
+    PDSDK_FloatRect fr;
+    obj->GetBBox(&fr);
+    float textW = fr.right - fr.left;
+    float textH = fr.top - fr.bottom;
+    if (textW <= 0 || textH <= 0) return;
+
+    float targetX = 0, targetY = 0;
+    if (align == 0) {
+        targetX = (float)CGRectGetMinX(rect) + 3;
+    } else if (align == 2) {
+        targetX = (float)CGRectGetMaxX(rect) - textW - 3;
+    } else {
+        targetX = (float)(CGRectGetMidX(rect) - textW / 2.0f);
+    }
+    targetY = (float)(CGRectGetMidY(rect) - textH / 2.0f);
+
+    obj->Offset(targetX - fr.left, targetY - fr.bottom);
 }
 
 #pragma mark - 标注管理
