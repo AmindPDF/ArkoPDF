@@ -19,7 +19,8 @@ enum EncryptionAlgorithm: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     /// SDK ENCRYPT_CIPHER_*：RC4=1 / AES=2 / AES2(256)=3
     var cipher: Int32 { self == .rc4_128 ? 1 : (self == .aes_128 ? 2 : 3) }
-    var keylen: Int32 { self == .aes_256 ? 256 : 128 }
+    /// 文档密钥长度，单位是「字节」：128 位=16 字节、256 位=32 字节（对齐 Windows m_nKeyBytes）。
+    var keylen: Int32 { self == .aes_256 ? 32 : 16 }
 }
 
 enum PrintPermission: String, CaseIterable, Identifiable {

@@ -324,7 +324,7 @@ int main(int argc, const char *argv[]) {
             ArkoSecurityOptions *sec = [[ArkoSecurityOptions alloc] init];
             sec.userPassword = @"123456";               // 打开密码（不设 owner，owner 默认空串）
             sec.cipher = 3;                             // ENCRYPT_CIPHER_AES2（256 位 AES）
-            sec.keylen = 256;
+            sec.keylen = 32;                            // 密钥长度单位是「字节」（256 位 = 32 字节）
             sec.encryptMetadata = YES;
             sec.permissions = 0xFFFFF0C0u | 0x0004u | 0x0008u;  // 保留位 + 打印 + 修改
             Check([doc saveToURL:[NSURL fileURLWithPath:encPath] progress:nil isCancelled:nil security:sec error:&err],

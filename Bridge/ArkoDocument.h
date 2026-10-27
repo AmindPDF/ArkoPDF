@@ -32,7 +32,7 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 @property (nonatomic, copy, nullable) NSString *ownerPassword;  // 权限密码
 @property (nonatomic, copy, nullable) NSString *userPassword;   // 打开密码
 @property (nonatomic) int cipher;                        // ENCRYPT_CIPHER_*
-@property (nonatomic) int keylen;                        // 128 / 256
+@property (nonatomic) int keylen;                        // 密钥长度（字节）：16 / 32
 @property (nonatomic) BOOL encryptMetadata;
 /// YES = 移除安全（不加密）；否则按上面字段设置安全。
 @property (nonatomic) BOOL removeSecurity;
