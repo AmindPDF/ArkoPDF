@@ -25,6 +25,10 @@
 }
 
 - (nullable instancetype)initWithURL:(NSURL *)url error:(NSError **)error {
+    return [self initWithURL:url password:nil error:error];
+}
+
+- (nullable instancetype)initWithURL:(NSURL *)url password:(nullable NSString *)password error:(NSError **)error {
     self = [super init];
     if (!self) {
         return nil;
@@ -40,7 +44,13 @@
         return nil;
     }
 
-    int ret = _doc->Open([[url path] UTF8String], 0);
+    const char *path = [[url path] UTF8String];
+    int ret = _doc->Open(path, 0);
+    // 加密文档：先 InputPassword 再重新 Open（对齐 Windows agent_ai.cpp 775-791）
+    if (ret == PDF_OPEN_ERROR_PASSWORD && password.length > 0) {
+        _doc->InputPassword([password UTF8String]);
+        ret = _doc->Open(path, 0);
+    }
     if (ret != PDF_OPEN_ERROR_SUCCESS) {
         if (error) {
             *error = [ArkoDocument errorForOpenCode:ret];
@@ -101,6 +111,8 @@
         } else {
             const char *owner = security.ownerPassword ? [security.ownerPassword UTF8String] : "";
             const char *user = security.userPassword ? [security.userPassword UTF8String] : "";
+            // 对齐 Windows Amd_DocImpl.cpp::Save（493-494）：先清旧安全，再设新安全
+            creator->RemoveSecurity();
             creator->SetSecurity(security.permissions, owner, user,
                                  security.cipher, security.keylen,
                                  security.encryptMetadata ? 1 : 0);

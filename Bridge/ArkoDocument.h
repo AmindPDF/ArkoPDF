@@ -43,6 +43,8 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 @property (nonatomic, weak, nullable) id<ArkoDocumentPPODelegate> ppoDelegate;
 
 - (nullable instancetype)initWithURL:(NSURL *)url error:(NSError **)error;
+/// 带密码打开：加密文档时先 InputPassword 再重新 Open（对齐 Windows agent_ai.cpp 流程）。
+- (nullable instancetype)initWithURL:(NSURL *)url password:(nullable NSString *)password error:(NSError **)error;
 @property (nonatomic, readonly) NSInteger pageCount;
 - (nullable ArkoPage *)pageAtIndex:(NSInteger)index;
 - (BOOL)saveToURL:(NSURL *)url

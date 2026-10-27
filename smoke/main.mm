@@ -7,6 +7,7 @@
 
 #import <Foundation/Foundation.h>
 #import <CoreGraphics/CoreGraphics.h>
+#import <CoreText/CoreText.h>
 #import <AppKit/AppKit.h>
 #import <unistd.h>
 #import <stdarg.h>
@@ -14,6 +15,7 @@
 #import "ArkoDocument.h"
 #import "ArkoPage.h"
 #import "ArkoParagraph.h"
+#include "ipdf_document.h"   // PDF_OPEN_ERROR_PASSWORD 等错误码
 
 // ============ 断言 ============
 
@@ -316,7 +318,39 @@ int main(int argc, const char *argv[]) {
             Check([p2 hasTrailmark], "trial watermark present after save");
         }
 
-        // 11. 真实样本段落编辑（如果 smoke/fixtures/ 里有 PDF 样本）
+        // 11. 密码 / 加密：保存时设打开密码 → 重开需密码 → 正确密码可开、错误密码失败
+        {
+            NSString *encPath = [cwd stringByAppendingPathComponent:@"smoke_encrypted.pdf"];
+            ArkoSecurityOptions *sec = [[ArkoSecurityOptions alloc] init];
+            sec.userPassword = @"123456";               // 打开密码（不设 owner，owner 默认空串）
+            sec.cipher = 3;                             // ENCRYPT_CIPHER_AES2（256 位 AES）
+            sec.keylen = 256;
+            sec.encryptMetadata = YES;
+            sec.permissions = 0xFFFFF0C0u | 0x0004u | 0x0008u;  // 保留位 + 打印 + 修改
+            Check([doc saveToURL:[NSURL fileURLWithPath:encPath] progress:nil isCancelled:nil security:sec error:&err],
+                  "save with open password");
+
+            // 无密码重开 → 失败，错误码 = PDF_OPEN_ERROR_PASSWORD
+            ArkoDocument *noPwd = [[ArkoDocument alloc] initWithURL:[NSURL fileURLWithPath:encPath] error:&err];
+            Check(noPwd == nil, "reopen encrypted without password fails");
+            Check(noPwd == nil && err.code == PDF_OPEN_ERROR_PASSWORD, "open error code is PASSWORD");
+
+            // 错误密码 → 失败
+            ArkoDocument *wrongPwd = [[ArkoDocument alloc] initWithURL:[NSURL fileURLWithPath:encPath] password:@"wrong" error:&err];
+            Check(wrongPwd == nil, "reopen encrypted with wrong password fails");
+
+            // 正确密码 → 成功，且 isEncrypted、页数一致
+            ArkoDocument *rightPwd = [[ArkoDocument alloc] initWithURL:[NSURL fileURLWithPath:encPath] password:@"123456" error:&err];
+            Check(rightPwd != nil, "reopen encrypted with correct password succeeds");
+            if (rightPwd) {
+                Check(rightPwd.isEncrypted, "reopened encrypted document isEncrypted");
+                Check(rightPwd.pageCount == doc.pageCount, "encrypted reopen preserves page count");
+                Info("encrypted reopen: pageCount=%ld, permission=0x%X",
+                     (long)rightPwd.pageCount, rightPwd.permissionFlags);
+            }
+        }
+
+        // 12. 真实样本段落编辑（如果 smoke/fixtures/ 里有 PDF 样本）
         {
             NSString *fixturesDir = [cwd stringByAppendingPathComponent:@"smoke/fixtures"];
             NSArray *files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:fixturesDir error:&err];
