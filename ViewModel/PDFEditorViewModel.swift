@@ -543,22 +543,6 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
         signSheetPresented = false
     }
 
-    /// 在页面点击处放置签名（固定宽度 180pt，按像素宽高比计算高度）。
-    func placePendingSign(pageIndex: Int, userPoint: CGPoint) {
-        guard let sign = pendingSign, let page = document?.page(at: pageIndex) else { return }
-        pendingSign = nil
-        let targetW: CGFloat = 180
-        let ratio = sign.pixelWidth > 0 ? sign.pixelHeight / sign.pixelWidth : 0.4
-        let targetH = max(30, targetW * ratio)
-        let x = Float(userPoint.x)
-        let y = Float(userPoint.y - targetH)  // 点击点为签名左上角
-        let idx = page.placeSignature(jpegPath: sign.jpegPath, atX: x, y: y,
-                                      width: Float(targetW), height: Float(targetH))
-        if idx >= 0 {
-            invalidateAllPages()
-        }
-    }
-
     /// 设置安全（内存暂存，保存文档后生效）：打开密码（userPassword）或权限密码（ownerPassword）。
     func applySecurity(ownerPassword: String?, userPassword: String?,
                        encryption: EncryptionAlgorithm, encryptMetadata: Bool,

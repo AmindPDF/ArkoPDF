@@ -302,6 +302,87 @@ extension PDFEditorViewModel {
         invalidateAllPages()
     }
 
+    // MARK: - 签名放置 / 选中 / 删除
+
+    /// 在页面点击处放置签名，注册撤销，并选中切换到图片编辑工具（可继续拖拽/缩放）。
+    func placePendingSign(pageIndex: Int, userPoint: CGPoint) {
+        guard let sign = pendingSign, let page = document?.page(at: pageIndex) else { return }
+        pendingSign = nil
+        let targetW: CGFloat = 180
+        let ratio = sign.pixelWidth > 0 ? sign.pixelHeight / sign.pixelWidth : 0.4
+        let targetH = max(30, targetW * ratio)
+        let x = Float(userPoint.x)
+        let y = Float(userPoint.y - targetH)  // 点击点为签名左上角
+        let idx = page.placeSignature(jpegPath: sign.jpegPath, atX: x, y: y,
+                                      width: Float(targetW), height: Float(targetH))
+        guard idx >= 0 else { return }
+
+        // 撤销：放置签名（删除对象 / 恢复克隆）
+        let handler = ObjHandle(page.pageObjectHandler(at: idx))
+        let clone = page.clonePageObject(at: idx)
+        if clone != 0 {
+            undoManager.register(UndoItem(
+                description: "放置签名",
+                undo: { ctx in
+                    ctx.performUndoRedo {
+                        if handler.value != 0 {
+                            ctx.document?.page(at: pageIndex)?.deletePageObject(byHandler: handler.value)
+                            handler.value = 0
+                        }
+                    }
+                },
+                redo: { ctx in
+                    ctx.performUndoRedo {
+                        ctx.document?.page(at: pageIndex)?.addPageObjectClone(clone, atZOrder: idx)
+                        handler.value = ctx.document?.page(at: pageIndex)?.pageObjectHandler(at: idx) ?? 0
+                    }
+                },
+                dispose: { ArkoPage.releasePageObjectClone(clone) }
+            ))
+        }
+
+        // 选中刚放置的签名，并切到图片编辑工具
+        if let info = page.pageObjectInfo(at: idx), let bbox = (info["bbox"] as? NSValue)?.rectValue {
+            imageSelection = ImageSelection(pageIndex: pageIndex, objectIndex: idx, bbox: bbox)
+        }
+        activateImageEditTool()
+        invalidateAllPages()
+    }
+
+    /// 切到编辑模块的「图片编辑」工具（保留当前 imageSelection 选中态）。
+    private func activateImageEditTool() {
+        guard let editModule = modules[.edit],
+              let imageTool = editModule.tools.first(where: { $0.id == "tool.editImage" }) else { return }
+        activeModuleKind = .edit
+        editModule.activeTool = imageTool
+        activeToolID = imageTool.id
+        selection = nil
+        clearParagraphEdit()
+        linkDraft = nil
+        pendingLink = nil
+    }
+
+    /// 命中并选中某页对象（右键命中用）。
+    func selectImageObject(pageIndex: Int, objectIndex: Int) {
+        guard let page = document?.page(at: pageIndex),
+              let info = page.pageObjectInfo(at: objectIndex),
+              (info["image"] as? NSNumber)?.boolValue == true,
+              let bbox = (info["bbox"] as? NSValue)?.rectValue else { return }
+        imageSelection = ImageSelection(pageIndex: pageIndex, objectIndex: objectIndex, bbox: bbox)
+    }
+
+    /// 删除当前选中的图片/签名对象（含撤销）。
+    func deleteSelectedImage() {
+        guard let sel = imageSelection else { return }
+        deleteImageObject(pageIndex: sel.pageIndex, idx: sel.objectIndex)
+    }
+
+    /// 导出当前选中的图片/签名对象。
+    func exportSelectedImage() {
+        guard let sel = imageSelection else { return }
+        exportImageObject(pageIndex: sel.pageIndex, idx: sel.objectIndex)
+    }
+
     // MARK: - 链接
 
     func setLinkDraft(_ rect: CGRect?, pageIndex: Int) {

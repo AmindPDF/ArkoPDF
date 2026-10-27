@@ -45,6 +45,9 @@ struct PDFDocumentView: View {
         .sheet(isPresented: $vm.signSheetPresented) {
             SignatureSheet()
         }
+        .onDeleteCommand {
+            vm.deleteSelectedImage()
+        }
     }
 
     private var placeholder: some View {
@@ -456,5 +459,32 @@ final class PDFPageCanvasView: NSView {
         let p = convert(event.locationInWindow, from: nil)
         let user = viewToUser(p, pageSize: pageSize)
         vm.route(phase, pageIndex: pageIndex, userPoint: user, modifiers: event.modifierFlags, clickCount: event.clickCount)
+    }
+
+    // 右键：命中图片/签名对象 → 选中并弹出上下文菜单
+    override func rightMouseDown(with event: NSEvent) {
+        guard let vm = viewModel else { return }
+        let p = convert(event.locationInWindow, from: nil)
+        let user = viewToUser(p, pageSize: pageSize)
+        let idx = vm.document?.page(at: pageIndex)?.pageObjectIndex(atPointX: user.x, y: user.y) ?? -1
+        guard idx >= 0 else { return }
+        vm.selectImageObject(pageIndex: pageIndex, objectIndex: idx)
+
+        let menu = NSMenu()
+        let deleteItem = NSMenuItem(title: "删除", action: #selector(deleteSelected), keyEquivalent: "")
+        deleteItem.target = self
+        menu.addItem(deleteItem)
+        let exportItem = NSMenuItem(title: "导出图片…", action: #selector(exportSelected), keyEquivalent: "")
+        exportItem.target = self
+        menu.addItem(exportItem)
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    @objc private func deleteSelected() {
+        viewModel?.deleteSelectedImage()
+    }
+
+    @objc private func exportSelected() {
+        viewModel?.exportSelectedImage()
     }
 }
