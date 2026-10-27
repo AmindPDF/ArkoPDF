@@ -52,13 +52,28 @@ extension PDFEditorViewModel {
 
     /// 数字签名（调用桥接层 ArkoDigitalSign）。
     func signDocument(pageIndex: Int, rect: CGRect, credential: SigningCredential,
-                      name: String, reason: String, location: String, to url: URL) -> Bool {
+                      name: String, reason: String, location: String,
+                      appearance: SignatureAppearance, lockDocument: Bool, to url: URL) -> Bool {
         guard let doc = document else { return false }
+
+        // Logo 图片写入临时文件（SDK 需要路径）
+        var logoPath: String? = nil
+        if appearance.showLogo, let logo = appearance.logoImage,
+           let tiff = logo.tiffRepresentation,
+           let rep = NSBitmapImageRep(data: tiff),
+           let png = rep.representation(using: .png, properties: [:]) {
+            let path = NSTemporaryDirectory() + "arko_sign_logo_\(UUID().uuidString).png"
+            try? png.write(to: URL(fileURLWithPath: path))
+            logoPath = path
+        }
+
+        let mdp = lockDocument ? 1 : 0
         do {
             return try ArkoDigitalSign().sign(document: doc, pageIndex: pageIndex, rect: rect,
                                               identity: credential.identity,
                                               name: name, reason: reason, location: location,
-                                              to: url)
+                                              logoPath: logoPath, mdp: mdp,
+                                              opacity: appearance.opacity, to: url)
         } catch {
             lastError = error.localizedDescription
             return false

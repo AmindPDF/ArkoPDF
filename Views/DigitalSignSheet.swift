@@ -168,7 +168,8 @@ struct DigitalSignSheet: View {
         let rect = CGRect(x: 60, y: 60, width: 200, height: 100)  // 默认放置位置（后续可拖拽）
         let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("signed-\(UUID().uuidString).pdf")
         if vm.signDocument(pageIndex: pageIndex, rect: rect, credential: cred,
-                           name: sel.name, reason: reason, location: location, to: url) {
+                           name: sel.name, reason: reason, location: location,
+                           appearance: vm.signatureAppearance, lockDocument: lockDocument, to: url) {
             vm.open(url: url)  // 重新打开已签名文档
             dismiss()
         }

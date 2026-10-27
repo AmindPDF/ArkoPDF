@@ -88,6 +88,9 @@ public:
                  name:(NSString *)name
                reason:(NSString *)reason
              location:(NSString *)location
+             logoPath:(NSString *)logoPath
+                   mdp:(int)mdp
+              opacity:(float)opacity
                  toURL:(NSURL *)url
                 error:(NSError **)error {
     ArkoPage *page = [document pageAtIndex:pageIndex];
@@ -107,9 +110,23 @@ public:
     std::wstring wsName = _NSStringToWide(name);
     std::wstring wsReason = _NSStringToWide(reason);
     std::wstring wsLocation = _NSStringToWide(location);
+    std::wstring wsLogo = _NSStringToWide(logoPath);
     std::wstring wsPath = _NSStringToWide([url path]);
 
-    signer->SetDigtialSignInfo(wsName.c_str(), wsLocation.c_str(), L"", L"", L"", wsReason.c_str(), L"");
+    signer->SetDigtialSignInfo(wsName.c_str(), wsLocation.c_str(), L"",
+                               wsLogo.c_str(), L"", wsReason.c_str(), L"");
+
+    // 外观：不透明度 / 名称样式（带 Logo 图片）
+    signer->SetSignerImageOpacity(opacity);
+    if (logoPath.length > 0) {
+        signer->SetDigitalSignNameStyle(SIGN_NAME_SHOW_IMAGE);
+    } else {
+        signer->SetDigitalSignNameStyle(SIGN_NAME_SHOW_COMMONNAME);
+    }
+    signer->SetDigitalSignShowDetailLabel(TRUE);
+
+    // MDP：锁定文档
+    signer->SetDigitalSignMDP(mdp);
 
     ArkoCMSDigitalSignCallback callback(identity);
     signer->SetDigitalSignCallback(&callback);

@@ -90,6 +90,10 @@ public:
 	virtual void SetDigitalSignTextDirect(int direct) = 0;
 	virtual void SetDigitalSignNameStyle(int name_style) = 0;
 	virtual void SetDigitalSignShowDetailLabel(int bShow) = 0;
+	/** Set the DocMDP permissions (lock document after signing).
+	 *  @param[in] permissions	1=no changes, 2=fill form+sign, 3=annotate+fill+sign. 0=no MDP.
+	 */
+	virtual void SetDigitalSignMDP(int permissions) = 0;
 	virtual void SetDigitalSignCallback(IPDF_DigitalSignCallback* callback) = 0;
 	virtual IPDF_DIBitmap* GetDigitalSignaturePreview() = 0;
 
