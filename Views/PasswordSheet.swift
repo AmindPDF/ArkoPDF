@@ -334,7 +334,7 @@ struct DocPropertiesSheet: View {
             Text("文档属性").font(.headline)
             Divider()
             infoRow("页数", "\(vm.pageCount)")
-            infoRow("加密", vm.document?.isEncrypted == true ? "是" : "否")
+            infoRow("加密", (vm.document?.isEncrypted() ?? false) ? "是" : "否")
             Divider()
             HStack {
                 Spacer()
