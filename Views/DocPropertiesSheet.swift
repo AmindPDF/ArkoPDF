@@ -12,18 +12,20 @@ struct DocPropertiesSheet: View {
         case description = "描述"
         case security = "安全"
         var id: String { rawValue }
+        var icon: String {
+            switch self {
+            case .description: return "doc.text"
+            case .security: return "checkmark.shield"
+            }
+        }
     }
 
     @State private var tab: Tab = .description
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $tab) {
-                ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(14)
+            segmentedControl
+                .padding(14)
 
             Divider()
 
@@ -100,6 +102,40 @@ struct DocPropertiesSheet: View {
                 }
             }
         }
+    }
+
+    // MARK: - 分段控件
+
+    private var segmentedControl: some View {
+        HStack(spacing: 1) {
+            ForEach(Tab.allCases) { t in
+                Button {
+                    tab = t
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: t.icon)
+                            .font(.system(size: 12, weight: .medium))
+                        Text(t.rawValue)
+                            .font(.system(size: 13))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(tab == t ? .white : .secondary)
+                .background(tab == t ? Color.accentColor : Color.clear)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .strokeBorder(Color.secondary.opacity(0.25))
+        )
     }
 
     // MARK: - 数据
