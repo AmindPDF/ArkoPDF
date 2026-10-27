@@ -56,6 +56,13 @@ NS_ASSUME_NONNULL_BEGIN
                                     contents:(nullable NSString *)contents
     NS_SWIFT_NAME(addRedactionMark(at:fillColor:contents:));
 
+/// 删除页面内容中完全落入指定矩形区域的对象（密文应用，调用 ArkoPDFCore 的 DeleteContentObjects）。
+- (NSInteger)deleteContentInRects:(NSArray<NSValue *> *)rects
+    NS_SWIFT_NAME(deleteContent(inRects:));
+
+/// 返回所有密文标记的矩形（SQUARE 且有填充色的标注，PDF 用户坐标）。
+- (NSArray<NSValue *> *)redactionMarkRects;
+
 // 标注管理（枚举 / 删除 / 修改）
 @property (nonatomic, readonly) NSInteger annotCount;
 /// 返回 @{@"type":@(ANNOT_TYPE), @"color":@(COLOR_MAKERGB), @"opacity":@(float), @"rect":NSValue(CGRect)}。

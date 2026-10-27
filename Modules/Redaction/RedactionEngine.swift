@@ -30,10 +30,13 @@ enum RedactionEngine {
         return handlers
     }
 
-    /// 应用密文：永久删除标记区域下方的原始内容并固化黑块。
-    /// Phase B：调用 ArkoPDFCore 新增接口（/Redact + 内容删除）。
+    /// 应用密文：永久删除标记区域下方的原始内容（黑块标记保留为遮盖）。
+    /// Phase B：调用 ArkoPDFCore 的 DeleteContentObjects 删除底层内容。
     static func apply(document: ArkoDocument, pageIndex: Int) {
-        // TODO(Phase B): ArkoPDFCore::ApplyRedaction(page, redactionRects)
+        guard let page = document.page(at: pageIndex) else { return }
+        let rects = page.redactionMarkRects()
+        guard !rects.isEmpty else { return }
+        _ = page.deleteContent(inRects: rects)
     }
 
     /// 搜索文字出现位置（批量密文用）。

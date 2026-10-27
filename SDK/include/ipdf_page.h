@@ -250,6 +250,15 @@ public:
 	/** Delete page object. */
 	virtual void DeletePageObject(IPDF_PageObject* object) = 0;
 
+	/**
+	 * Delete content objects (text/image/path) whose bounding box is fully
+	 * inside any of the given rectangles. Used by redaction "apply".
+	 * @param[in] rects			Array of rectangles (PDF user coordinates).
+	 * @param[in] rect_count		Count of rectangles.
+	 * @return The number of deleted objects (negative on failure).
+	 */
+	virtual int DeleteContentObjects(const PDSDK_FloatRect* rects, int rect_count) = 0;
+
 	/** Send page object to background. */
 	virtual void SendObjToBack(IPDF_PageObject* obj) = 0;
 

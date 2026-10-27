@@ -310,6 +310,43 @@
     return (unsigned long long)(uintptr_t)annot->GetAnnotHandler();
 }
 
+- (NSInteger)deleteContentInRects:(NSArray<NSValue *> *)rects {
+    if (!_page || rects.count == 0) return -1;
+    NSUInteger n = rects.count;
+    PDSDK_FloatRect *arr = (PDSDK_FloatRect *)malloc(sizeof(PDSDK_FloatRect) * n);
+    if (!arr) return -1;
+    for (NSUInteger i = 0; i < n; i++) {
+        CGRect r = [rects[i] rectValue];
+        arr[i].left = (float)CGRectGetMinX(r);
+        arr[i].bottom = (float)CGRectGetMinY(r);
+        arr[i].right = (float)CGRectGetMaxX(r);
+        arr[i].top = (float)CGRectGetMaxY(r);
+    }
+    int ret = _page->DeleteContentObjects(arr, (int)n);
+    free(arr);
+    return (NSInteger)ret;
+}
+
+- (NSArray<NSValue *> *)redactionMarkRects {
+    NSMutableArray<NSValue *> *rects = [NSMutableArray array];
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots) return rects;
+    int n = annots->Count();
+    for (int i = 0; i < n; i++) {
+        IPDF_Annot *annot = annots->GetAnnot(i);
+        if (!annot) continue;
+        if (annot->GetType() != ANNOT_TYPE_SQUARE) continue;
+        unsigned int fill = 0;
+        if (annot->GetFillColor(fill)) {  // 返回 1 = 有填充色（0 = 无）
+            PDSDK_FloatRect r = annot->GetRect();
+            CGRect rect = CGRectMake((CGFloat)r.left, (CGFloat)r.bottom,
+                                     (CGFloat)(r.right - r.left), (CGFloat)(r.top - r.bottom));
+            [rects addObject:[NSValue valueWithRect:rect]];
+        }
+    }
+    return rects;
+}
+
 #pragma mark - 标注管理
 
 - (NSInteger)annotCount {
