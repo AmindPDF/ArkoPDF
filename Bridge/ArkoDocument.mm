@@ -475,6 +475,19 @@ static int *ArkoIntArrayFromPages(NSArray<NSNumber *> *pages) {
     };
 }
 
+- (nullable NSDictionary *)signatureDataAtIndex:(NSInteger)index {
+    if (!_doc) return nil;
+    unsigned char *data = NULL;
+    unsigned long dataLen = 0;
+    char *contents = NULL;
+    int contentsLen = 0;
+    if (_doc->GetSignatureData((int)index, &data, &dataLen, &contents, &contentsLen) != 0) return nil;
+    NSData *nsData = [NSData dataWithBytes:data length:(NSUInteger)dataLen];
+    NSString *nsContents = contents ? [NSString stringWithUTF8String:contents] : @"";
+    _doc->FreeSignatureData(data, contents);
+    return @{@"data": nsData, @"contents": nsContents};
+}
+
 - (nullable NSArray<NSNumber *> *)clonePageHandlersFrom:(NSInteger)start count:(NSInteger)count {
     if (!_doc || count <= 0) return nil;
     NSMutableArray<NSNumber *> *clones = [NSMutableArray arrayWithCapacity:(NSUInteger)count];

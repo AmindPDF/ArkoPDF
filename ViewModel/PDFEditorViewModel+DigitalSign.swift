@@ -7,21 +7,33 @@ extension PDFEditorViewModel {
 
     // MARK: - 数字签名
 
-    /// 从当前文档枚举数字签名，刷新签名面板。
+    /// 从当前文档枚举数字签名，刷新签名面板（含密码学验证）。
     func refreshSignatures() {
         guard let doc = document else { documentSignatures = []; return }
         var list: [DocumentSignature] = []
         for i in 0..<doc.signatureCount {
             guard let info = doc.signatureInfo(at: i) else { continue }
-            let valid = (info["valid"] as? NSNumber)?.intValue ?? 0
+            let signerName = info["signerName"] as? String ?? ""
+            let time = info["time"] as? String ?? ""
+            let reason = info["reason"] as? String ?? ""
+            let location = info["location"] as? String ?? ""
+
+            // 密码学验证：CMSDecoder 校验 PKCS#7
+            var valid = false
+            if let sigData = doc.signatureData(at: i),
+               let data = sigData["data"] as? Data,
+               let contentsHex = sigData["contents"] as? String {
+                valid = CertificateManager.verifySignature(signedData: data, contentsHex: contentsHex)
+            }
+
             list.append(DocumentSignature(
                 id: "sig-\(i)",
-                signerName: info["signerName"] as? String ?? "",
+                signerName: signerName,
                 distinguishedName: "",
-                signingTime: info["time"] as? String ?? "",
-                reason: info["reason"] as? String ?? "",
-                location: info["location"] as? String ?? "",
-                valid: valid > 0,
+                signingTime: time,
+                reason: reason,
+                location: location,
+                valid: valid,
                 isCertified: false))
         }
         documentSignatures = list

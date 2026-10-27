@@ -103,6 +103,8 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 @property (nonatomic, readonly) NSInteger signatureCount;
 /// 返回 @{@"signerName":NSString, @"time":NSString, @"reason":NSString, @"location":NSString, @"subFilter":NSString, @"valid":@(int)}；越界返回 nil。
 - (nullable NSDictionary *)signatureInfoAtIndex:(NSInteger)index;
+/// 返回第 index 个签名的待验数据 @{@"data":NSData(ByteRange拼接), @"contents":NSString(hex PKCS#7)}；越界返回 nil。
+- (nullable NSDictionary *)signatureDataAtIndex:(NSInteger)index NS_SWIFT_NAME(signatureData(at:));
 
 // 大纲（书签树）
 /// 返回 @[@{@"title":NSString, @"level":@int, @"page":@int, @"path":NSArray<NSNumber*>}]（扁平、按树序）。

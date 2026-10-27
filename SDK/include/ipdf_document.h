@@ -345,6 +345,13 @@ public:
 	virtual int GetSignatureCount() = 0;
 	/** Get info of the index-th digital signature. Returns 0 on success. */
 	virtual int GetSignatureInfo(int index, PDSDK_SignatureInfo* info) = 0;
+	/** Get the index-th signature's signed data (ByteRange blocks concatenated) and
+	 *  its hex-encoded Contents (PKCS#7). Buffers are allocated internally; free
+	 *  them with FreeSignatureData. Returns 0 on success. */
+	virtual int GetSignatureData(int index, unsigned char** data, unsigned long* data_len,
+	                             char** contents, int* contents_len) = 0;
+	/** Free the buffers returned by GetSignatureData. */
+	virtual void FreeSignatureData(unsigned char* data, char* contents) = 0;
 
 	/**
 	 * @brief Set new document title.

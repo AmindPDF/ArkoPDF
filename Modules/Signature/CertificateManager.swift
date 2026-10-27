@@ -60,4 +60,40 @@ enum CertificateManager {
         // TODO(Phase 2): 生成 RSA/ECC 密钥对 + 手动构造并自签 X.509 证书
         return nil
     }
+
+    /// 验证 detached PKCS#7 签名。
+    /// - Parameters:
+    ///   - signedData: ByteRange 拼接的待验数据。
+    ///   - contentsHex: 签名字典 /Contents 的十六进制串（可含 < > 定界符）。
+    static func verifySignature(signedData: Data, contentsHex: String) -> Bool {
+        // 1. 十六进制解码 → PKCS#7
+        let hex = contentsHex.trimmingCharacters(in: CharacterSet(charactersIn: "<>\n\r "))
+        var pkcs7 = Data()
+        var idx = hex.startIndex
+        while idx < hex.endIndex {
+            let next = hex.index(idx, offsetBy: 2, limitedBy: hex.endIndex) ?? hex.endIndex
+            let byteStr = String(hex[idx..<next])
+            if let byte = UInt8(byteStr, radix: 16) {
+                pkcs7.append(byte)
+            }
+            idx = next
+        }
+        guard !pkcs7.isEmpty else { return false }
+
+        // 2. CMSDecoder 验证
+        var decoder: CMSDecoder?
+        guard CMSDecoderCreate(&decoder) == noErr, let dec = decoder else { return false }
+
+        signedData.withUnsafeBytes { (buf: UnsafeRawBufferPointer) in
+            _ = CMSDecoderUpdateContent(dec, buf.baseAddress, buf.count)
+        }
+        pkcs7.withUnsafeBytes { (buf: UnsafeRawBufferPointer) in
+            _ = CMSDecoderUpdateMessage(dec, buf.baseAddress, buf.count)
+        }
+        CMSDecoderFinalizeMessage(dec)
+
+        var status: CMSSignerStatus = kCMSSignerUnsigned
+        CMSDecoderCopySignerStatus(dec, 0, &status)
+        return status == kCMSSignerValid
+    }
 }
