@@ -15,6 +15,9 @@
 - (IPDF_Bookmark *)bookmarkAtPath:(NSArray<NSNumber *> *)path tree:(IPDF_BookmarkTree *)tree;
 @end
 
+@implementation ArkoSecurityOptions
+@end
+
 @implementation ArkoDocument {
     IPDF_Document *_doc;
     NSMutableArray<ArkoPage *> *_pages;
