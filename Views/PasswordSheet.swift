@@ -48,12 +48,16 @@ enum UserPerm {
     static let extractAccess: UInt32 = 0x0200
     static let assemble: UInt32 = 0x0400
     static let printHigh: UInt32 = 0x0800
+    /// 全部权限（PSL_ALL_PERMISSION = 0xFFFFFFFC）
+    static let allPermissions: UInt32 = 0xFFFFFFFC
+    /// 保留位基础（PSL_NO_PERMISSION = 0xFFFFF0C0）
+    static let baseReserved: UInt32 = 0xFFFFF0C0
 }
 
-/// 把打印许可 / 修改许可 / 复制 / 无障碍 组合成 SDK permissions 位掩码。
+/// 把打印许可 / 修改许可 / 复制 / 无障碍 组合成 SDK permissions 位掩码（对齐 Windows PasswordProtectionDlg）。
 func combinedPermissions(printPerm: PrintPermission, changePerm: ChangePermission,
                          allowCopy: Bool, allowAccessibility: Bool) -> UInt32 {
-    var flags: UInt32 = 0
+    var flags: UInt32 = UserPerm.baseReserved
     switch printPerm {
     case .none: break
     case .lowRes: flags |= UserPerm.print
@@ -64,9 +68,9 @@ func combinedPermissions(printPerm: PrintPermission, changePerm: ChangePermissio
     case .assemble: flags |= UserPerm.assemble
     case .fillForm: flags |= UserPerm.fillForm
     case .annotateForm: flags |= UserPerm.annotForm | UserPerm.fillForm
-    case .allExceptExtract: flags |= UserPerm.modify | UserPerm.assemble | UserPerm.fillForm | UserPerm.annotForm
+    case .allExceptExtract: flags |= UserPerm.assemble | UserPerm.fillForm | UserPerm.annotForm
     }
-    if allowCopy { flags |= UserPerm.extract }
+    if allowCopy { flags |= UserPerm.extract | UserPerm.extractAccess }
     if allowAccessibility { flags |= UserPerm.extractAccess }
     return flags
 }
@@ -256,9 +260,9 @@ struct PasswordSheet: View {
                 vm.lastError = "两次输入的打开密码不一致"
                 return
             }
-            vm.setSecurity(ownerPassword: nil, userPassword: openPassword,
-                           encryption: encryption, encryptMetadata: encryptMetadata,
-                           printPerm: nil, changePerm: nil, allowCopy: nil, allowAccessibility: nil)
+            vm.applySecurity(ownerPassword: nil, userPassword: openPassword,
+                             encryption: encryption, encryptMetadata: encryptMetadata,
+                             printPerm: nil, changePerm: nil, allowCopy: nil, allowAccessibility: nil)
         } else {
             // 权限密码
             guard !permissionPassword.isEmpty else {
@@ -269,10 +273,10 @@ struct PasswordSheet: View {
                 vm.lastError = "两次输入的权限密码不一致"
                 return
             }
-            vm.setSecurity(ownerPassword: permissionPassword, userPassword: nil,
-                           encryption: encryption, encryptMetadata: encryptMetadata,
-                           printPerm: printPerm, changePerm: changePerm,
-                           allowCopy: allowCopy, allowAccessibility: allowAccessibility)
+            vm.applySecurity(ownerPassword: permissionPassword, userPassword: nil,
+                             encryption: encryption, encryptMetadata: encryptMetadata,
+                             printPerm: printPerm, changePerm: changePerm,
+                             allowCopy: allowCopy, allowAccessibility: allowAccessibility)
         }
         dismiss()
     }

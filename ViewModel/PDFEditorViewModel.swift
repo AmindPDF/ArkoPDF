@@ -88,6 +88,8 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var passwordMenuPresented = false
     @Published var passwordTab: PasswordTab?
     @Published var showDocProperties = false
+    /// 待保存的安全设置（内存暂存，保存文档后生效；nil = 不改变安全）。
+    @Published var pendingSecurity: ArkoSecurityOptions?
 
     /// 保存进度状态（SaveProgressOverlay 用）。
     @Published var isSaving = false
@@ -508,37 +510,34 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
         passwordMenuPresented = true
     }
 
-    /// 设置安全：打开密码（userPassword）或权限密码（ownerPassword），以及加密算法与权限。
-    func setSecurity(ownerPassword: String?, userPassword: String?,
-                     encryption: EncryptionAlgorithm, encryptMetadata: Bool,
-                     printPerm: PrintPermission?, changePerm: ChangePermission?,
-                     allowCopy: Bool?, allowAccessibility: Bool?) {
-        guard let doc = document else { return }
+    /// 设置安全（内存暂存，保存文档后生效）：打开密码（userPassword）或权限密码（ownerPassword）。
+    func applySecurity(ownerPassword: String?, userPassword: String?,
+                       encryption: EncryptionAlgorithm, encryptMetadata: Bool,
+                       printPerm: PrintPermission?, changePerm: ChangePermission?,
+                       allowCopy: Bool?, allowAccessibility: Bool?) {
         let perms: UInt32
         if let p = printPerm, let c = changePerm, let copy = allowCopy, let access = allowAccessibility {
             perms = combinedPermissions(printPerm: p, changePerm: c, allowCopy: copy, allowAccessibility: access)
         } else {
             // 仅设打开密码（无权限密码）时保留全部权限
-            perms = UserPerm.print | UserPerm.printHigh | UserPerm.modify | UserPerm.assemble
-                  | UserPerm.fillForm | UserPerm.annotForm | UserPerm.extract | UserPerm.extractAccess
+            perms = UserPerm.allPermissions
         }
-        do {
-            _ = try doc.setSecurity(permissions: perms,
-                                    ownerPassword: ownerPassword, userPassword: userPassword,
-                                    cipher: encryption.cipher, keylen: encryption.keylen,
-                                    encryptMetadata: encryptMetadata)
-        } catch {
-            lastError = error.localizedDescription
-        }
+        let opts = ArkoSecurityOptions()
+        opts.permissions = perms
+        opts.ownerPassword = ownerPassword
+        opts.userPassword = userPassword
+        opts.cipher = encryption.cipher
+        opts.keylen = encryption.keylen
+        opts.encryptMetadata = encryptMetadata
+        opts.removeSecurity = false
+        pendingSecurity = opts
     }
 
+    /// 移除安全（内存暂存，保存文档后生效）。
     func removeSecurity() {
-        guard let doc = document else { return }
-        do {
-            _ = try doc.removeSecurity()
-        } catch {
-            lastError = error.localizedDescription
-        }
+        let opts = ArkoSecurityOptions()
+        opts.removeSecurity = true
+        pendingSecurity = opts
     }
 
     /// 提取页面到新 PDF（不改当前文档，无撤销）。
@@ -626,6 +625,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
 
     func save(to url: URL) {
         guard let doc = document else { return }
+        let security = pendingSecurity  // 快照：本次保存应用的安全设置
         isSaving = true
         saveProgress = 0
         saveTitle = "保存…"
@@ -637,7 +637,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
                     DispatchQueue.main.async { self.saveProgress = Double(p) }
                 }, isCancelled: { [weak self] in
                     self?.saveCancelFlag.isCancelled ?? false
-                })
+                }, security: security)
                 DispatchQueue.main.async { self.isSaving = false }
             } catch {
                 DispatchQueue.main.async {

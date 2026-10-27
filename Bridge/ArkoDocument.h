@@ -26,6 +26,18 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 - (void)document:(ArkoDocument *)document didChangePages:(ArkoPPOOperation)operation;
 @end
 
+/// 安全设置（保存时通过 IPDF_Creator 应用）。
+@interface ArkoSecurityOptions : NSObject
+@property (nonatomic) unsigned int permissions;         // USER_PERM_* 位或
+@property (nonatomic, copy, nullable) NSString *ownerPassword;  // 权限密码
+@property (nonatomic, copy, nullable) NSString *userPassword;   // 打开密码
+@property (nonatomic) int cipher;                        // ENCRYPT_CIPHER_*
+@property (nonatomic) int keylen;                        // 128 / 256
+@property (nonatomic) BOOL encryptMetadata;
+/// YES = 移除安全（不加密）；否则按上面字段设置安全。
+@property (nonatomic) BOOL removeSecurity;
+@end
+
 @interface ArkoDocument : NSObject
 
 @property (nonatomic, weak, nullable) id<ArkoDocumentPPODelegate> ppoDelegate;
@@ -36,7 +48,8 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 - (BOOL)saveToURL:(NSURL *)url
          progress:(nullable void (^)(float))progress
        isCancelled:(nullable BOOL (^)(void))isCancelled
-            error:(NSError **)error NS_SWIFT_NAME(save(to:progress:isCancelled:));
+          security:(nullable ArkoSecurityOptions *)security
+             error:(NSError **)error NS_SWIFT_NAME(save(to:progress:isCancelled:security:));
 - (void)close;
 
 // 页面组织（PPO）：每次操作前后会通过 ppoDelegate 发通知，内部重建页缓存
@@ -64,18 +77,7 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 /// 快速读取某 PDF 的页数（不创建完整文档对象，供插入/替换的源文件选择器用）。
 + (NSInteger)pageCountOfURL:(NSURL *)url NS_SWIFT_NAME(pageCount(of:));
 
-// 安全（密码 / 权限 / 加密）
-/// 设置标准安全处理器：打开密码 + 权限密码 + 加密算法 + 权限 flags + 是否加密元数据。
-- (BOOL)setSecurityWithPermissions:(unsigned int)permissions
-                     ownerPassword:(nullable NSString *)ownerPwd
-                      userPassword:(nullable NSString *)userPwd
-                            cipher:(int)cipher
-                            keylen:(int)keylen
-                  encryptMetadata:(BOOL)encrypt
-                             error:(NSError **)error
-    NS_SWIFT_NAME(setSecurity(permissions:ownerPassword:userPassword:cipher:keylen:encryptMetadata:));
-/// 移除安全设置（不再加密）。
-- (BOOL)removeSecurityWithError:(NSError **)error NS_SWIFT_NAME(removeSecurity());
+// 安全（查询）
 /// 当前权限 flags（USER_PERM_* 位或）。
 - (unsigned int)permissionFlags;
 /// 文档是否已加密。

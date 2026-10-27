@@ -71,7 +71,7 @@
     return _pages[(NSUInteger)index];
 }
 
-- (BOOL)saveToURL:(NSURL *)url progress:(void (^)(float))progress isCancelled:(BOOL (^)(void))isCancelled error:(NSError **)error {
+- (BOOL)saveToURL:(NSURL *)url progress:(void (^)(float))progress isCancelled:(BOOL (^)(void))isCancelled security:(ArkoSecurityOptions *)security error:(NSError **)error {
     if (!_doc) {
         return NO;
     }
@@ -90,6 +90,19 @@
         return NO;
     }
     creator->Init(_doc, PDF_CREATE_NO_ORIGINAL);
+
+    // 安全设置：保存时通过 Creator 应用（SetSecurity/RemoveSecurity 属于 IPDF_Creator）
+    if (security) {
+        if (security.removeSecurity) {
+            creator->RemoveSecurity();
+        } else {
+            const char *owner = security.ownerPassword ? [security.ownerPassword UTF8String] : "";
+            const char *user = security.userPassword ? [security.userPassword UTF8String] : "";
+            creator->SetSecurity(security.permissions, owner, user,
+                                 security.cipher, security.keylen,
+                                 security.encryptMetadata ? 1 : 0);
+        }
+    }
 
     ArkoProgressSink *sink = nil;
     if (progress || isCancelled) {
@@ -332,35 +345,7 @@ static int *ArkoIntArrayFromPages(NSArray<NSNumber *> *pages) {
     return (NSInteger)n;
 }
 
-#pragma mark - 安全（密码 / 权限 / 加密）
-
-- (BOOL)setSecurityWithPermissions:(unsigned int)permissions
-                     ownerPassword:(NSString *)ownerPwd
-                      userPassword:(NSString *)userPwd
-                            cipher:(int)cipher
-                            keylen:(int)keylen
-                  encryptMetadata:(BOOL)encrypt
-                             error:(NSError **)error {
-    if (!_doc) return NO;
-    const char *owner = ownerPwd ? [ownerPwd UTF8String] : "";
-    const char *user = userPwd ? [userPwd UTF8String] : "";
-    int ret = _doc->SetSecurity(permissions, owner, user, cipher, keylen, encrypt ? 1 : 0);
-    if (!ret && error) {
-        *error = [NSError errorWithDomain:@"ArkoPDF.SDK" code:-10
-                                 userInfo:@{NSLocalizedDescriptionKey: @"设置安全设置失败"}];
-    }
-    return ret != 0;
-}
-
-- (BOOL)removeSecurityWithError:(NSError **)error {
-    if (!_doc) return NO;
-    int ret = _doc->RemoveSecurity();
-    if (!ret && error) {
-        *error = [NSError errorWithDomain:@"ArkoPDF.SDK" code:-11
-                                 userInfo:@{NSLocalizedDescriptionKey: @"移除安全设置失败"}];
-    }
-    return ret != 0;
-}
+#pragma mark - 安全（查询）
 
 - (unsigned int)permissionFlags {
     return _doc ? _doc->GetPermission() : 0;
