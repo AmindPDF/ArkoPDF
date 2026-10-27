@@ -7,6 +7,26 @@ extension PDFEditorViewModel {
 
     // MARK: - 数字签名
 
+    /// 从当前文档枚举数字签名，刷新签名面板。
+    func refreshSignatures() {
+        guard let doc = document else { documentSignatures = []; return }
+        var list: [DocumentSignature] = []
+        for i in 0..<doc.signatureCount {
+            guard let info = doc.signatureInfo(at: i) else { continue }
+            let valid = (info["valid"] as? NSNumber)?.intValue ?? 0
+            list.append(DocumentSignature(
+                id: "sig-\(i)",
+                signerName: info["signerName"] as? String ?? "",
+                distinguishedName: "",
+                signingTime: info["time"] as? String ?? "",
+                reason: info["reason"] as? String ?? "",
+                location: info["location"] as? String ?? "",
+                valid: valid > 0,
+                isCertified: false))
+        }
+        documentSignatures = list
+    }
+
     /// 从 Keychain 加载可用的签名身份。
     func loadSigningIdentities() {
         let creds = CertificateManager.loadKeychainIdentities()

@@ -99,6 +99,11 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 @property (nonatomic, readonly) CGFloat pageWidth;
 @property (nonatomic, readonly) CGFloat pageHeight;
 
+// 数字签名（枚举）
+@property (nonatomic, readonly) NSInteger signatureCount;
+/// 返回 @{@"signerName":NSString, @"time":NSString, @"reason":NSString, @"location":NSString, @"subFilter":NSString, @"valid":@(int)}；越界返回 nil。
+- (nullable NSDictionary *)signatureInfoAtIndex:(NSInteger)index;
+
 // 大纲（书签树）
 /// 返回 @[@{@"title":NSString, @"level":@int, @"page":@int, @"path":NSArray<NSNumber*>}]（扁平、按树序）。
 - (NSArray<NSDictionary *> *)outlineItems;

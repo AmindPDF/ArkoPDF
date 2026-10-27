@@ -697,6 +697,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
                 cache.removeAllObjects()
                 refreshAnnotations()
                 refreshOutline()
+                refreshSignatures()
             }
         } catch {
             document = nil

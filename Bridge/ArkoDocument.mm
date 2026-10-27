@@ -23,6 +23,17 @@ static NSString * _Nullable ArkoUTF8(const char *s) {
     return [NSString stringWithUTF8String:s];
 }
 
+static NSString *ArkoWideToString(const wchar_t *w, int maxLen) {
+    if (!w) return @"";
+    int len = 0;
+    while (len < maxLen && w[len] != 0) len++;
+    unichar *buf = (unichar *)malloc(sizeof(unichar) * (size_t)len);
+    for (int i = 0; i < len; i++) buf[i] = (unichar)w[i];  // BMP 字符
+    NSString *s = [NSString stringWithCharacters:buf length:(NSUInteger)len];
+    free(buf);
+    return s;
+}
+
 @implementation ArkoDocument {
     IPDF_Document *_doc;
     NSMutableArray<ArkoPage *> *_pages;
@@ -442,6 +453,26 @@ static int *ArkoIntArrayFromPages(NSArray<NSNumber *> *pages) {
     float h = p ? p->GetHeight() : 0;
     if (p) p->Release();
     return (CGFloat)h;
+}
+
+#pragma mark - 数字签名（枚举）
+
+- (NSInteger)signatureCount {
+    return _doc ? _doc->GetSignatureCount() : 0;
+}
+
+- (nullable NSDictionary *)signatureInfoAtIndex:(NSInteger)index {
+    if (!_doc) return nil;
+    PDSDK_SignatureInfo info;
+    if (_doc->GetSignatureInfo((int)index, &info) != 0) return nil;
+    return @{
+        @"signerName": ArkoWideToString(info.signer_name, 256),
+        @"time": ArkoWideToString(info.time, 64),
+        @"reason": ArkoWideToString(info.reason, 256),
+        @"location": ArkoWideToString(info.location, 256),
+        @"subFilter": ArkoWideToString(info.sub_filter, 64),
+        @"valid": @(info.is_valid),
+    };
 }
 
 - (nullable NSArray<NSNumber *> *)clonePageHandlersFrom:(NSInteger)start count:(NSInteger)count {

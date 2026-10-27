@@ -115,8 +115,18 @@ class IPDF_FolderFontInfo;
 /** The page handler indentity a page*/
 typedef void* PDF_PageHandler;
 
+/** Digital signature info. */
+typedef struct _PDSDK_SignatureInfo {
+	wchar_t signer_name[256];
+	wchar_t time[64];
+	wchar_t reason[256];
+	wchar_t location[256];
+	wchar_t sub_filter[64];
+	int is_valid;   // 0=未验证 1=有效 -1=无效
+} PDSDK_SignatureInfo;
+
 /**
- * @brief Interfac for a PDF document. 
+ * @brief Interfac for a PDF document.
  */
 class IPDF_Document
 {
@@ -330,6 +340,11 @@ public:
 	virtual const char* GetSubject() = 0;
 	/** Get productor */
 	virtual const char* GetProductor() = 0;
+
+	/** Get the number of digital signatures in the document. */
+	virtual int GetSignatureCount() = 0;
+	/** Get info of the index-th digital signature. Returns 0 on success. */
+	virtual int GetSignatureInfo(int index, PDSDK_SignatureInfo* info) = 0;
 
 	/**
 	 * @brief Set new document title.
