@@ -38,7 +38,7 @@ enum RedactionEngine {
         guard !marks.isEmpty else { return }
 
         // 1. 删除底层内容
-        let rects = marks.compactMap { ($0["rect"] as? NSValue)?.rectValue }
+        let rects = marks.compactMap { $0["rect"] as? NSValue }
         _ = page.deleteContent(inRects: rects)
 
         // 2. 叠加文字（每个标记各自的 contents）
