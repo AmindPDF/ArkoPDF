@@ -21,6 +21,10 @@ struct PDFDocumentView: View {
                     // 编辑浮动栏（段落格式 / 图片编辑）
                     EditBarView()
                         .padding(.top, 8)
+                    if vm.activeToolID == "tool.redact" {
+                        RedactionOptionsBar()
+                            .padding(.top, 8)
+                    }
                 }
             }
         }
@@ -44,6 +48,9 @@ struct PDFDocumentView: View {
         }
         .sheet(isPresented: $vm.signSheetPresented) {
             SignatureSheet()
+        }
+        .sheet(isPresented: $vm.redactAppearancePresented) {
+            RedactionAppearanceSheet()
         }
         .onDeleteCommand {
             vm.deleteSelectedImage()
@@ -288,6 +295,7 @@ final class PDFPageCanvasView: NSView {
         vm.$paragraphSelection.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$imageSelection.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$linkDraft.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
+        vm.$redactionDraft.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
     }
 
     private var pageSize: CGSize {
@@ -346,6 +354,18 @@ final class PDFPageCanvasView: NSView {
         if let ld = vm.linkDraft, ld.pageIndex == pageIndex {
             drawLinkDraft(ld.rect, pageSize: size)
         }
+
+        // 密文框选草稿（半透明黑）
+        if let rd = vm.redactionDraft, rd.pageIndex == pageIndex {
+            drawRedactionDraft(rd.rect, pageSize: size)
+        }
+    }
+
+    private func drawRedactionDraft(_ rect: CGRect, pageSize: CGSize) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let r = userToView(rect, pageSize: pageSize)
+        ctx.setFillColor(NSColor.black.withAlphaComponent(0.35).cgColor)
+        ctx.fill(r)
     }
 
     private func drawParagraphSelection(_ boxes: [CGRect], pageSize: CGSize) {

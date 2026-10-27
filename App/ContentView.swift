@@ -54,6 +54,20 @@ struct ContentView: View {
                                 ])
                 }
             }
+
+            // 密文：应用确认
+            if vm.redactApplyConfirmPresented {
+                AlertOverlay {
+                    AlertDialog(icon: "rectangle.inset.filled",
+                                tone: .danger,
+                                title: "应用密文？",
+                                message: "应用后，密文标记下方的原始内容将被永久删除，无法恢复。\n确定要继续吗？",
+                                buttons: [
+                                    AlertDialogButton("取消") { vm.redactApplyConfirmPresented = false },
+                                    AlertDialogButton("应用", role: .primary) { vm.redactApplyConfirmPresented = false; vm.applyRedactions() },
+                                ])
+                }
+            }
         }
     }
 }

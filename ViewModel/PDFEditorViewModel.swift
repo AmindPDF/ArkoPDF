@@ -104,6 +104,11 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     /// 签名：对话框 + 待放置的签名（点击页面放置）。
     @Published var signSheetPresented = false
     @Published var pendingSign: PendingSign?
+    /// 密文：外观 + 框选预览 + 对话框。
+    @Published var redactionAppearance = RedactionAppearance()
+    @Published var redactionDraft: (pageIndex: Int, rect: CGRect)?
+    @Published var redactAppearancePresented = false
+    @Published var redactApplyConfirmPresented = false
 
     /// 保存进度状态（SaveProgressOverlay 用）。
     @Published var isSaving = false

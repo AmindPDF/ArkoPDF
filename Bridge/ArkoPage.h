@@ -50,6 +50,12 @@ NS_ASSUME_NONNULL_BEGIN
                      color:(unsigned int)color
                    opacity:(float)opacity;
 
+// 密文标记（ANNOT_TYPE_SQUARE + 填充色）：rect 为 PDF 用户坐标，contents 为叠加文字（可 nil）。
+- (unsigned long long)addRedactionMarkAtRect:(CGRect)rect
+                                   fillColor:(unsigned int)fillColor
+                                    contents:(nullable NSString *)contents
+    NS_SWIFT_NAME(addRedactionMark(at:fillColor:contents:));
+
 // 标注管理（枚举 / 删除 / 修改）
 @property (nonatomic, readonly) NSInteger annotCount;
 /// 返回 @{@"type":@(ANNOT_TYPE), @"color":@(COLOR_MAKERGB), @"opacity":@(float), @"rect":NSValue(CGRect)}。

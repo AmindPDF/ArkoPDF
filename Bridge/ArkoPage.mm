@@ -282,6 +282,34 @@
     }
 }
 
+- (unsigned long long)addRedactionMarkAtRect:(CGRect)rect
+                                   fillColor:(unsigned int)fillColor
+                                    contents:(nullable NSString *)contents {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots) return 0;
+    IPDF_Annot *annot = annots->AddAnnot(ANNOT_TYPE_SQUARE);
+    if (!annot) return 0;
+    annot->SetFlags(ANNOT_FLAG_PRINT);
+    // 4 个角点（左下→右下→右上→左上）
+    PDSDK_FloatPoint *pts[4];
+    for (int i = 0; i < 4; i++) pts[i] = new PDSDK_FloatPoint();
+    pts[0]->x = (float)CGRectGetMinX(rect); pts[0]->y = (float)CGRectGetMinY(rect);
+    pts[1]->x = (float)CGRectGetMaxX(rect); pts[1]->y = (float)CGRectGetMinY(rect);
+    pts[2]->x = (float)CGRectGetMaxX(rect); pts[2]->y = (float)CGRectGetMaxY(rect);
+    pts[3]->x = (float)CGRectGetMinX(rect); pts[3]->y = (float)CGRectGetMaxY(rect);
+    annot->SetPoints(pts, 4, 0);
+    for (int i = 0; i < 4; i++) delete pts[i];
+    annot->SetColor(fillColor);
+    annot->SetFillColor(fillColor);
+    annot->SetOpacity(1.0f);
+    annot->SetBorderWidth(0);
+    if (contents.length > 0) {
+        annot->SetContents([contents UTF8String], 0);
+    }
+    annot->GenerateAppearance();
+    return (unsigned long long)(uintptr_t)annot->GetAnnotHandler();
+}
+
 #pragma mark - 标注管理
 
 - (NSInteger)annotCount {

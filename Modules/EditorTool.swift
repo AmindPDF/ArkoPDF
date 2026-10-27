@@ -64,6 +64,10 @@ protocol ToolContext: AnyObject {
     func removeSecurity()
     /// 弹出签名对话框（创建签名后点击页面放置）。
     func showSignSheet()
+    /// 密文：拖拽框选实时预览矩形（nil 清除）。
+    func setRedactionDraft(_ rect: CGRect?, pageIndex: Int)
+    /// 添加密文标记（rects 为 PDF 用户坐标）。
+    func markRedaction(rects: [CGRect], pageIndex: Int)
 }
 
 /// 工具协议。对应 Windows 的 tool 层。

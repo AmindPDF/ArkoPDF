@@ -20,7 +20,7 @@ final class ProtectModule: EditorModule {
             context.showSignSheet()
         }
         let digitalSign = StubTool(id: "tool.digitalSign", displayName: "数字签名", icon: "checkmark.seal")
-        let redact = StubTool(id: "tool.redact", displayName: "密文", icon: "rectangle.inset.filled")
+        let redact = RedactTool()
         tools = [addPassword, removePassword, sign, digitalSign, redact]
         activeTool = addPassword
     }
