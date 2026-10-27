@@ -44,11 +44,11 @@ extension PDFEditorViewModel {
         invalidateAllPages()
     }
 
-    /// 应用密文（Phase B：ArkoPDFCore 删除底层内容并固化黑块）。
+    /// 应用密文（Phase B：ArkoPDFCore 删除底层内容并固化黑块 + 叠加文字）。
     func applyRedactions() {
         guard let doc = document else { return }
         for p in 0..<doc.pageCount {
-            RedactionEngine.apply(document: doc, pageIndex: p)
+            RedactionEngine.apply(document: doc, pageIndex: p, appearance: redactionAppearance)
         }
         invalidateAllPages()
     }

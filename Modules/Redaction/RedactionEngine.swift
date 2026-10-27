@@ -30,13 +30,28 @@ enum RedactionEngine {
         return handlers
     }
 
-    /// 应用密文：永久删除标记区域下方的原始内容（黑块标记保留为遮盖）。
-    /// Phase B：调用 ArkoPDFCore 的 DeleteContentObjects 删除底层内容。
-    static func apply(document: ArkoDocument, pageIndex: Int) {
+    /// 应用密文：永久删除标记区域下方的原始内容（黑块标记保留为遮盖），
+    /// 并在有叠加文字/豁免码的标记上绘制文字。
+    static func apply(document: ArkoDocument, pageIndex: Int, appearance: RedactionAppearance) {
         guard let page = document.page(at: pageIndex) else { return }
-        let rects = page.redactionMarkRects()
-        guard !rects.isEmpty else { return }
+        let marks = page.redactionMarks()
+        guard !marks.isEmpty else { return }
+
+        // 1. 删除底层内容
+        let rects = marks.compactMap { ($0["rect"] as? NSValue)?.rectValue }
         _ = page.deleteContent(inRects: rects)
+
+        // 2. 叠加文字（每个标记各自的 contents）
+        let font = document.defaultFontHandle
+        guard font != 0 else { return }
+        let align: Int32 = appearance.alignment == .left ? 0 : (appearance.alignment == .right ? 2 : 1)
+        for mark in marks {
+            guard let contents = mark["contents"] as? String, !contents.isEmpty else { continue }
+            guard let rectValue = mark["rect"] as? NSValue else { continue }
+            page.addOverlayText(contents, inRect: rectValue.rectValue, fontHandle: font,
+                                fontSize: Float(appearance.fontSize),
+                                color: appearance.fontColor.sdkColor, align: align)
+        }
     }
 
     /// 搜索文字出现位置（批量密文用）。

@@ -74,7 +74,9 @@ class IPDF_PathData;
 /** TextBox annotation */
 #define ANNOT_TYPE_TEXTBOX				28
 /** Apple Pencil Kit annotation */
-#define ANNOT_TYPE_APK					29 
+#define ANNOT_TYPE_APK					29
+/** Redaction annotation (密文标记) */
+#define ANNOT_TYPE_REDACT				30
 /*@}*/
 
 

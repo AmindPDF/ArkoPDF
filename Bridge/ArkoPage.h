@@ -60,8 +60,18 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSInteger)deleteContentInRects:(NSArray<NSValue *> *)rects
     NS_SWIFT_NAME(deleteContent(inRects:));
 
-/// 返回所有密文标记的矩形（SQUARE 且有填充色的标注，PDF 用户坐标）。
-- (NSArray<NSValue *> *)redactionMarkRects;
+/// 返回所有密文标记（/Redact 标注），每项 @{@"rect":NSValue(CGRect), @"contents":NSString?}。
+- (NSArray<NSDictionary *> *)redactionMarks;
+
+/// 在矩形上叠加文字（密文叠加文字/豁免码）。fontHandle 取 ArkoDocument.defaultFontHandle。
+/// align: 0=左 1=中 2=右。
+- (void)addOverlayText:(NSString *)text
+                inRect:(CGRect)rect
+            fontHandle:(unsigned long long)fontHandle
+              fontSize:(float)fontSize
+                 color:(unsigned int)color
+                 align:(int)align
+    NS_SWIFT_NAME(addOverlayText(_:inRect:fontHandle:fontSize:color:align:));
 
 // 标注管理（枚举 / 删除 / 修改）
 @property (nonatomic, readonly) NSInteger annotCount;

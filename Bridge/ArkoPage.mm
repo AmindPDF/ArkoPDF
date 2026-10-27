@@ -287,7 +287,7 @@
                                     contents:(nullable NSString *)contents {
     IPDF_AnnotList *annots = [self sdkAnnotList];
     if (!annots) return 0;
-    IPDF_Annot *annot = annots->AddAnnot(ANNOT_TYPE_SQUARE);
+    IPDF_Annot *annot = annots->AddAnnot(ANNOT_TYPE_REDACT);
     if (!annot) return 0;
     annot->SetFlags(ANNOT_FLAG_PRINT);
     // 4 个角点（左下→右下→右上→左上）
@@ -327,24 +327,60 @@
     return (NSInteger)ret;
 }
 
-- (NSArray<NSValue *> *)redactionMarkRects {
-    NSMutableArray<NSValue *> *rects = [NSMutableArray array];
+- (NSArray<NSDictionary *> *)redactionMarks {
+    NSMutableArray<NSDictionary *> *marks = [NSMutableArray array];
     IPDF_AnnotList *annots = [self sdkAnnotList];
-    if (!annots) return rects;
+    if (!annots) return marks;
     int n = annots->Count();
     for (int i = 0; i < n; i++) {
         IPDF_Annot *annot = annots->GetAnnot(i);
         if (!annot) continue;
-        if (annot->GetType() != ANNOT_TYPE_SQUARE) continue;
-        unsigned int fill = 0;
-        if (annot->GetFillColor(fill)) {  // 返回 1 = 有填充色（0 = 无）
-            PDSDK_FloatRect r = annot->GetRect();
-            CGRect rect = CGRectMake((CGFloat)r.left, (CGFloat)r.bottom,
-                                     (CGFloat)(r.right - r.left), (CGFloat)(r.top - r.bottom));
-            [rects addObject:[NSValue valueWithRect:rect]];
-        }
+        if (annot->GetType() != ANNOT_TYPE_REDACT) continue;
+        PDSDK_FloatRect r = annot->GetRect();
+        CGRect rect = CGRectMake((CGFloat)r.left, (CGFloat)r.bottom,
+                                 (CGFloat)(r.right - r.left), (CGFloat)(r.top - r.bottom));
+        const char *contents = annot->GetContents_UTF8();
+        NSString *contentsStr = contents ? [NSString stringWithUTF8String:contents] : @"";
+        [marks addObject:@{
+            @"rect": [NSValue valueWithRect:rect],
+            @"contents": contentsStr,
+        }];
     }
-    return rects;
+    return marks;
+}
+
+- (void)addOverlayText:(NSString *)text
+                inRect:(CGRect)rect
+            fontHandle:(unsigned long long)fontHandle
+              fontSize:(float)fontSize
+                 color:(unsigned int)color
+                 align:(int)align {
+    if (!_page || text.length == 0 || fontHandle == 0) return;
+    IPDF_Font *font = (IPDF_Font *)(uintptr_t)fontHandle;
+    if (!font) return;
+
+    // 粗略估算文字宽度（半宽近似，用于居中/右对齐）
+    float textW = fontSize * 0.55f * (float)text.length;
+    float x = 0;
+    if (align == 0) {
+        x = (float)CGRectGetMinX(rect) + 3;
+    } else if (align == 2) {
+        x = (float)CGRectGetMaxX(rect) - textW - 3;
+    } else {
+        x = (float)(CGRectGetMidX(rect) - textW / 2.0f);
+    }
+    float y = (float)(CGRectGetMidY(rect) - fontSize * 0.35f);
+
+    // NSString → wchar_t（macOS wchar_t 为 32 位，BMP 字符直接取 UTF-16 码元）
+    NSUInteger len = text.length;
+    wchar_t *wbuf = (wchar_t *)malloc(sizeof(wchar_t) * (len + 1));
+    if (!wbuf) return;
+    for (NSUInteger i = 0; i < len; i++) {
+        wbuf[i] = (wchar_t)[text characterAtIndex:i];
+    }
+    wbuf[len] = 0;
+    _page->AddText(wbuf, x, y, font, fontSize, color);
+    free(wbuf);
 }
 
 #pragma mark - 标注管理
