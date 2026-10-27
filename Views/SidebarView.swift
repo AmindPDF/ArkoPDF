@@ -11,6 +11,7 @@ struct SidebarView: View {
         case pages = "页面"
         case outline = "大纲"
         case annotations = "标注"
+        case signatures = "签名"
         var id: String { rawValue }
     }
 
@@ -30,6 +31,7 @@ struct SidebarView: View {
             case .pages: ThumbnailView()
             case .outline: OutlineListView()
             case .annotations: AnnotationListView()
+            case .signatures: SignaturePanelView()
             }
         }
         .frame(minWidth: 130, idealWidth: 170, maxWidth: 230)

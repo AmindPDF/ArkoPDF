@@ -68,6 +68,8 @@ protocol ToolContext: AnyObject {
     func setRedactionDraft(_ rect: CGRect?, pageIndex: Int)
     /// 添加密文标记（rects 为 PDF 用户坐标）。
     func markRedaction(rects: [CGRect], pageIndex: Int)
+    /// 弹出数字签名对话框（选证书 → 签名文档）。
+    func showSignDoc()
 }
 
 /// 工具协议。对应 Windows 的 tool 层。

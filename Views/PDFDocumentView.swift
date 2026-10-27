@@ -52,6 +52,15 @@ struct PDFDocumentView: View {
         .sheet(isPresented: $vm.redactAppearancePresented) {
             RedactionAppearanceSheet()
         }
+        .sheet(isPresented: $vm.signDocPresented) {
+            DigitalSignSheet()
+        }
+        .sheet(isPresented: $vm.newCertPresented) {
+            NewCertificateSheet()
+        }
+        .sheet(isPresented: $vm.sigPropPresented) {
+            SignaturePropertiesSheet()
+        }
         .onDeleteCommand {
             vm.deleteSelectedImage()
         }

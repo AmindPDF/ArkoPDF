@@ -109,6 +109,14 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var redactionDraft: (pageIndex: Int, rect: CGRect)?
     @Published var redactAppearancePresented = false
     @Published var redactApplyConfirmPresented = false
+    /// 数字签名：对话框 + 身份/签名数据源。
+    @Published var signDocPresented = false
+    @Published var newCertPresented = false
+    @Published var sigPropPresented = false
+    @Published var selectedSignature: DocumentSignature?
+    @Published var signingIdentities: [SigningIdentity] = []
+    @Published var documentSignatures: [DocumentSignature] = []
+    @Published var signatureAppearance = SignatureAppearance()
 
     /// 保存进度状态（SaveProgressOverlay 用）。
     @Published var isSaving = false
@@ -540,6 +548,11 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
 
     func showSignSheet() {
         signSheetPresented = true
+    }
+
+    /// 数字签名：打开签名对话框。
+    func showSignDoc() {
+        signDocPresented = true
     }
 
     /// 签名对话框「确定」：暂存签名，等待点击页面放置。

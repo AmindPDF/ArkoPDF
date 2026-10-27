@@ -19,7 +19,9 @@ final class ProtectModule: EditorModule {
         let sign = ActionTool(id: "tool.sign", displayName: "签名", icon: "signature") { context in
             context.showSignSheet()
         }
-        let digitalSign = StubTool(id: "tool.digitalSign", displayName: "数字签名", icon: "checkmark.seal")
+        let digitalSign = ActionTool(id: "tool.digitalSign", displayName: "数字签名", icon: "checkmark.seal") { context in
+            context.showSignDoc()
+        }
         let redact = RedactTool()
         tools = [addPassword, removePassword, sign, digitalSign, redact]
         activeTool = addPassword
