@@ -203,6 +203,7 @@ struct LinkSettingSheet: View {
             HStack {
                 Spacer()
                 Button("取消") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
                 Button("确定") { confirm() }
                     .keyboardShortcut(.defaultAction)
             }

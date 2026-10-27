@@ -328,34 +328,3 @@ struct PasswordMenuSheet: View {
     }
 }
 
-// MARK: - 文档属性（简单展示）
-
-struct DocPropertiesSheet: View {
-    @EnvironmentObject var vm: PDFEditorViewModel
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("文档属性").font(.headline)
-            Divider()
-            infoRow("页数", "\(vm.pageCount)")
-            infoRow("加密", (vm.document?.isEncrypted() ?? false) ? "是" : "否")
-            Divider()
-            HStack {
-                Spacer()
-                Button("关闭") { dismiss() }.keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(20)
-        .frame(width: 320)
-    }
-
-    private func infoRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label).foregroundColor(.secondary)
-            Spacer()
-            Text(value)
-        }
-        .font(.body)
-    }
-}

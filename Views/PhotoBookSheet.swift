@@ -106,6 +106,7 @@ struct PhotoBookSheet: View {
             Text("PDF PhotoBook").font(.caption).foregroundColor(.secondary)
             Spacer()
             Button("取消") { dismiss() }
+                .keyboardShortcut(.cancelAction)
             Button("生成并保存 PDF…") { save() }
                 .buttonStyle(.borderedProminent)
                 .disabled(photos.isEmpty || isSaving)

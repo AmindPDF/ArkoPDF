@@ -18,10 +18,16 @@
 @implementation ArkoSecurityOptions
 @end
 
+static NSString * _Nullable ArkoUTF8(const char *s) {
+    if (!s) return nil;
+    return [NSString stringWithUTF8String:s];
+}
+
 @implementation ArkoDocument {
     IPDF_Document *_doc;
     NSMutableArray<ArkoPage *> *_pages;
     IPDF_Font *_defaultFont;
+    NSString *_filePath;
 }
 
 - (nullable instancetype)initWithURL:(NSURL *)url error:(NSError **)error {
@@ -33,6 +39,7 @@
     if (!self) {
         return nil;
     }
+    _filePath = [url path];
 
     _doc = PDSDK_NewDocument();
     if (!_doc) {
@@ -368,6 +375,73 @@ static int *ArkoIntArrayFromPages(NSArray<NSNumber *> *pages) {
 
 - (BOOL)isEncrypted {
     return _doc && _doc->IsEncrypted();
+}
+
+#pragma mark - 文档属性（元数据）
+
+- (NSString *)filePath {
+    return _filePath ? _filePath : @"";
+}
+
+- (NSString *)title {
+    return _doc ? ArkoUTF8(_doc->GetTitle()) : nil;
+}
+
+- (NSString *)author {
+    return _doc ? ArkoUTF8(_doc->GetAuthor()) : nil;
+}
+
+- (NSString *)subject {
+    return _doc ? ArkoUTF8(_doc->GetSubject()) : nil;
+}
+
+- (NSString *)producer {
+    return _doc ? ArkoUTF8(_doc->GetProductor()) : nil;
+}
+
+- (NSString *)creationDate {
+    return _doc ? ArkoUTF8(_doc->GetCreationDate()) : nil;
+}
+
+- (NSString *)modificationDate {
+    return _doc ? ArkoUTF8(_doc->GetModifyDate()) : nil;
+}
+
+- (NSString *)pdfVersion {
+    if (!_filePath) return @"";
+    NSFileHandle *fh = [NSFileHandle fileHandleForReadingAtPath:_filePath];
+    if (!fh) return @"";
+    NSData *head = [fh readDataOfLength:16];
+    [fh closeFile];
+    NSString *s = [[NSString alloc] initWithData:head encoding:NSASCIIStringEncoding];
+    if (!s || ![s hasPrefix:@"%PDF-"]) return @"";
+    NSString *rest = [s substringFromIndex:5];  // "%PDF-" 长度 5
+    NSMutableString *ver = [NSMutableString string];
+    for (NSUInteger i = 0; i < rest.length; i++) {
+        unichar c = [rest characterAtIndex:i];
+        if ((c >= '0' && c <= '9') || c == '.') {
+            [ver appendFormat:@"%C", c];
+        } else {
+            break;
+        }
+    }
+    return ver.length ? ver : @"";
+}
+
+- (CGFloat)pageWidth {
+    if (!_doc) return 0;
+    IPDF_Page *p = _doc->GetPage(0);
+    float w = p ? p->GetWidth() : 0;
+    if (p) p->Release();
+    return (CGFloat)w;
+}
+
+- (CGFloat)pageHeight {
+    if (!_doc) return 0;
+    IPDF_Page *p = _doc->GetPage(0);
+    float h = p ? p->GetHeight() : 0;
+    if (p) p->Release();
+    return (CGFloat)h;
 }
 
 - (nullable NSArray<NSNumber *> *)clonePageHandlersFrom:(NSInteger)start count:(NSInteger)count {

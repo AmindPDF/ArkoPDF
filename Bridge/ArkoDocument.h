@@ -85,6 +85,20 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 /// 文档是否已加密。
 - (BOOL)isEncrypted;
 
+// 文档属性（元数据，供「文档属性」对话框）
+@property (nonatomic, readonly, copy) NSString *filePath;
+@property (nonatomic, readonly, nullable) NSString *title;
+@property (nonatomic, readonly, nullable) NSString *author;
+@property (nonatomic, readonly, nullable) NSString *subject;
+@property (nonatomic, readonly, nullable) NSString *producer;
+@property (nonatomic, readonly, nullable) NSString *creationDate;
+@property (nonatomic, readonly, nullable) NSString *modificationDate;
+/// PDF 版本号（如 "1.7"，从文件头 %PDF-x.y 解析）。
+@property (nonatomic, readonly) NSString *pdfVersion;
+/// 首页尺寸（pt）。
+@property (nonatomic, readonly) CGFloat pageWidth;
+@property (nonatomic, readonly) CGFloat pageHeight;
+
 // 大纲（书签树）
 /// 返回 @[@{@"title":NSString, @"level":@int, @"page":@int, @"path":NSArray<NSNumber*>}]（扁平、按树序）。
 - (NSArray<NSDictionary *> *)outlineItems;

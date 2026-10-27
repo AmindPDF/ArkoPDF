@@ -91,6 +91,7 @@ struct ExtractSheet: View {
             HStack {
                 Spacer()
                 Button("取消") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
                 Button("提取并导出…") {
                     let panel = NSSavePanel()
                     panel.allowedContentTypes = [.pdf]
@@ -160,6 +161,7 @@ struct InsertPagesSheet: View {
             HStack {
                 Spacer()
                 Button("取消") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
                 Button("插入") {
                     guard let url = sourceURL else { return }
                     let pages = range.resolve(pageCount: sourcePageCount)
@@ -222,6 +224,7 @@ struct ReplacePagesSheet: View {
             HStack {
                 Spacer()
                 Button("取消") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
                 Button("替换") {
                     guard let url = sourceURL else { return }
                     let pages = range.resolve(pageCount: sourcePageCount)
