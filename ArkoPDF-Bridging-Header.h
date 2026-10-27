@@ -7,3 +7,4 @@
 #import "Bridge/ArkoPage.h"
 #import "Bridge/ArkoParagraph.h"
 #import "Bridge/ArkoPhotoBook.h"
+#import "Bridge/ArkoDigitalSign.h"

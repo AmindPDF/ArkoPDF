@@ -34,6 +34,10 @@
     return self;
 }
 
+- (void *)sdkPage {
+    return _page;
+}
+
 - (NSInteger)pageIndex {
     return _index;
 }

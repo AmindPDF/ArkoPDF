@@ -10,6 +10,7 @@ struct SigningIdentity: Identifiable {
     let distinguishedName: String
     let valid: Bool           // 是否有效（未过期、可签名）
     let source: Source
+    var credential: SigningCredential? = nil   // 关联的签名身份（SecIdentity）
 
     enum Source {
         case keychain          // Keychain 系统身份
@@ -17,12 +18,13 @@ struct SigningIdentity: Identifiable {
         case selfSigned        // 新建的自签名证书
     }
 
-    init(id: String, name: String, distinguishedName: String, valid: Bool, source: Source) {
+    init(id: String, name: String, distinguishedName: String, valid: Bool, source: Source, credential: SigningCredential? = nil) {
         self.id = id
         self.name = name
         self.distinguishedName = distinguishedName
         self.valid = valid
         self.source = source
+        self.credential = credential
     }
 }
 

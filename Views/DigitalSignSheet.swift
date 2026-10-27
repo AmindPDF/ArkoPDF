@@ -46,6 +46,7 @@ struct DigitalSignSheet: View {
         }
         .frame(width: 480, height: 560)
         .onAppear {
+            if vm.signingIdentities.isEmpty { vm.loadSigningIdentities() }
             if selectedIdentityID == nil {
                 selectedIdentityID = vm.signingIdentities.first?.id
             }
@@ -157,15 +158,31 @@ struct DigitalSignSheet: View {
         }
     }
 
-    // MARK: 动作（Phase 1 为占位，Phase 2 接 SDK 签名）
+    // MARK: 动作
 
     private func sign() {
-        // TODO(Phase 2): 调用 ArkoPDFCore 的 DoDigitaSign 完成签名
-        dismiss()
+        guard let id = selectedIdentityID,
+              let sel = vm.signingIdentities.first(where: { $0.id == id }),
+              let cred = sel.credential else { return }
+        let pageIndex = vm.currentPage
+        let rect = CGRect(x: 60, y: 60, width: 200, height: 100)  // 默认放置位置（后续可拖拽）
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("signed-\(UUID().uuidString).pdf")
+        if vm.signDocument(pageIndex: pageIndex, rect: rect, credential: cred,
+                           name: sel.name, reason: reason, location: location, to: url) {
+            vm.open(url: url)  // 重新打开已签名文档
+            dismiss()
+        }
     }
 
     private func importCertificate() {
-        // TODO(Phase 2): 导入 .p12 证书
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.data]
+        panel.allowsMultipleSelection = false
+        if panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) {
+            if vm.importP12(data: data, password: "") {
+                selectedIdentityID = vm.signingIdentities.last?.id
+            }
+        }
     }
 
     private func showCertInfo() {

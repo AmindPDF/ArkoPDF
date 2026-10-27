@@ -183,6 +183,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 // 内部（ArkoDocument 专用，勿从 Swift 调用）
 - (nullable instancetype)initWithSDKPage:(void *)page index:(NSInteger)index;
+/// 内部：底层 IPDF_Page*（数字签名等需要，勿从 Swift 调用）。
+- (void *)sdkPage;
 
 @end
 
