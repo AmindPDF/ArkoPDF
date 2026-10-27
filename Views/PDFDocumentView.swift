@@ -42,6 +42,9 @@ struct PDFDocumentView: View {
         .sheet(isPresented: $vm.showDocProperties) {
             DocPropertiesSheet()
         }
+        .sheet(isPresented: $vm.signSheetPresented) {
+            SignatureSheet()
+        }
     }
 
     private var placeholder: some View {

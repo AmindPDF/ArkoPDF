@@ -10,6 +10,7 @@
 #include "ipdf_pagetext.h"
 #include "ipdf_paragraph.h"
 #include "ipdf_pageobject.h"
+#include "ipdf_sign.h"
 #include <string>
 
 @implementation ArkoPage {
@@ -644,6 +645,31 @@ static std::wstring ArkoWStringFromNSString(NSString *s) {
     _page->ParseContent();
     IPDF_PageObject *obj = _page->AddImage([path UTF8String], x, y, width, height, alpha, NULL);
     if (!obj) return -1;
+    return (NSInteger)_page->GetZOrder(obj);
+}
+
+- (NSInteger)placeSignatureWithJpegPath:(NSString *)path
+                                    atX:(float)x y:(float)y
+                                  width:(float)width height:(float)height {
+    if (!_page || !path) return -1;
+    IPDF_Signer *signer = PDSDK_CreateSigner();
+    if (!signer) return -1;
+    IPDF_Document *sigDoc = PDSDK_NewDocument();
+    if (!sigDoc) {
+        signer->Release();
+        return -1;
+    }
+    int ok = signer->CreateSignature_UTF8([path UTF8String], sigDoc);
+    if (!ok) {
+        PDSDK_ReleaseDocument(sigDoc);
+        signer->Release();
+        return -1;
+    }
+    IPDF_PageObject *obj = signer->PlaceSignature(_page, x, y, (int)width, (int)height, sigDoc);
+    PDSDK_ReleaseDocument(sigDoc);
+    signer->Release();
+    if (!obj) return -1;
+    _page->ParseContent();
     return (NSInteger)_page->GetZOrder(obj);
 }
 

@@ -127,6 +127,12 @@ NS_ASSUME_NONNULL_BEGIN
                             width:(float)width height:(float)height
                             alpha:(float)alpha;
 
+/// 放置签名：从 JPEG 创建签名对象并放置到页（IPDF_Signer::CreateSignature + PlaceSignature），返回 z-order 下标（-1 失败）。
+- (NSInteger)placeSignatureWithJpegPath:(NSString *)path
+                                    atX:(float)x y:(float)y
+                                  width:(float)width height:(float)height
+    NS_SWIFT_NAME(placeSignature(jpegPath:atX:y:width:height:));
+
 #pragma mark - 链接标注（ANNOT_TYPE_LINK）
 
 /// 新建链接标注，返回标注句柄（0 失败）。rect 为 PDF 用户坐标。

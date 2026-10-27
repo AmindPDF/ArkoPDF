@@ -16,8 +16,12 @@ final class ProtectModule: EditorModule {
         let removePassword = ActionTool(id: "tool.removePassword", displayName: "移除密码", icon: "lock.open") { context in
             context.removeSecurity()
         }
-        let permission = StubTool(id: "tool.permission", displayName: "权限管理", icon: "checkmark.shield")
-        tools = [addPassword, removePassword, permission]
+        let sign = ActionTool(id: "tool.sign", displayName: "签名", icon: "signature") { context in
+            context.showSignSheet()
+        }
+        let digitalSign = StubTool(id: "tool.digitalSign", displayName: "数字签名", icon: "checkmark.seal")
+        let redact = StubTool(id: "tool.redact", displayName: "密文", icon: "rectangle.inset.filled")
+        tools = [addPassword, removePassword, sign, digitalSign, redact]
         activeTool = addPassword
     }
 }

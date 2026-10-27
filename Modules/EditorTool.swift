@@ -62,6 +62,8 @@ protocol ToolContext: AnyObject {
     func showPasswordMenu()
     /// 移除文档安全设置。
     func removeSecurity()
+    /// 弹出签名对话框（创建签名后点击页面放置）。
+    func showSignSheet()
 }
 
 /// 工具协议。对应 Windows 的 tool 层。

@@ -42,6 +42,13 @@ struct OutlineItem: Identifiable {
     var id: String { path.map(String.init).joined(separator: "-") }
 }
 
+/// 待放置到页面的签名（创建签名对话框「确定」后暂存）。
+struct PendingSign {
+    let jpegPath: String
+    let pixelWidth: CGFloat
+    let pixelHeight: CGFloat
+}
+
 final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditContext {
 
     // MARK: - 文档状态
@@ -94,6 +101,9 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     /// 移除密码：确认对话框 / 完成对话框。
     @Published var removePasswordConfirmPresented = false
     @Published var removePasswordDonePresented = false
+    /// 签名：对话框 + 待放置的签名（点击页面放置）。
+    @Published var signSheetPresented = false
+    @Published var pendingSign: PendingSign?
 
     /// 保存进度状态（SaveProgressOverlay 用）。
     @Published var isSaving = false
@@ -386,6 +396,13 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     // MARK: - 事件路由
 
     func route(_ phase: ToolPhase, pageIndex: Int, userPoint: CGPoint, modifiers: NSEvent.ModifierFlags, clickCount: Int) {
+        // 有待放置的签名时，点击页面直接放置（拦截，不路由到工具）
+        if pendingSign != nil {
+            if phase == .down {
+                placePendingSign(pageIndex: pageIndex, userPoint: userPoint)
+            }
+            return
+        }
         let event = ToolMouseEvent(pageIndex: pageIndex, point: userPoint, modifiers: modifiers, clickCount: clickCount)
         activeModule?.route(phase, event, context: self)
     }
@@ -512,6 +529,34 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
 
     func showPasswordMenu() {
         passwordMenuPresented = true
+    }
+
+    // MARK: - 签名
+
+    func showSignSheet() {
+        signSheetPresented = true
+    }
+
+    /// 签名对话框「确定」：暂存签名，等待点击页面放置。
+    func confirmSignature(jpegPath: String, pixelWidth: CGFloat, pixelHeight: CGFloat) {
+        pendingSign = PendingSign(jpegPath: jpegPath, pixelWidth: pixelWidth, pixelHeight: pixelHeight)
+        signSheetPresented = false
+    }
+
+    /// 在页面点击处放置签名（固定宽度 180pt，按像素宽高比计算高度）。
+    func placePendingSign(pageIndex: Int, userPoint: CGPoint) {
+        guard let sign = pendingSign, let page = document?.page(at: pageIndex) else { return }
+        pendingSign = nil
+        let targetW: CGFloat = 180
+        let ratio = sign.pixelWidth > 0 ? sign.pixelHeight / sign.pixelWidth : 0.4
+        let targetH = max(30, targetW * ratio)
+        let x = Float(userPoint.x)
+        let y = Float(userPoint.y - targetH)  // 点击点为签名左上角
+        let idx = page.placeSignature(jpegPath: sign.jpegPath, atX: x, y: y,
+                                      width: Float(targetW), height: Float(targetH))
+        if idx >= 0 {
+            invalidateAllPages()
+        }
     }
 
     /// 设置安全（内存暂存，保存文档后生效）：打开密码（userPassword）或权限密码（ownerPassword）。
