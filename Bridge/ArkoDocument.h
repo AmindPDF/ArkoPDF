@@ -64,6 +64,23 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 /// 快速读取某 PDF 的页数（不创建完整文档对象，供插入/替换的源文件选择器用）。
 + (NSInteger)pageCountOfURL:(NSURL *)url NS_SWIFT_NAME(pageCount(of:));
 
+// 安全（密码 / 权限 / 加密）
+/// 设置标准安全处理器：打开密码 + 权限密码 + 加密算法 + 权限 flags + 是否加密元数据。
+- (BOOL)setSecurityWithPermissions:(unsigned int)permissions
+                     ownerPassword:(nullable NSString *)ownerPwd
+                      userPassword:(nullable NSString *)userPwd
+                            cipher:(int)cipher
+                            keylen:(int)keylen
+                  encryptMetadata:(BOOL)encrypt
+                             error:(NSError **)error
+    NS_SWIFT_NAME(setSecurity(permissions:ownerPassword:userPassword:cipher:keylen:encryptMetadata:));
+/// 移除安全设置（不再加密）。
+- (BOOL)removeSecurityWithError:(NSError **)error NS_SWIFT_NAME(removeSecurity());
+/// 当前权限 flags（USER_PERM_* 位或）。
+- (unsigned int)permissionFlags;
+/// 文档是否已加密。
+- (BOOL)isEncrypted;
+
 // 大纲（书签树）
 /// 返回 @[@{@"title":NSString, @"level":@int, @"page":@int, @"path":NSArray<NSNumber*>}]（扁平、按树序）。
 - (NSArray<NSDictionary *> *)outlineItems;

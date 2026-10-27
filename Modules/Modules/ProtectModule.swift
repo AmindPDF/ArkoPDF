@@ -10,10 +10,14 @@ final class ProtectModule: EditorModule {
     var activeTool: EditorTool?
 
     init() {
-        let encrypt = StubTool(id: "tool.encrypt", displayName: "加密", icon: "lock")
-        let removePwd = StubTool(id: "tool.removePassword", displayName: "移除密码", icon: "lock.open")
+        let addPassword = ActionTool(id: "tool.addPassword", displayName: "添加密码", icon: "lock") { context in
+            context.showPasswordMenu()
+        }
+        let removePassword = ActionTool(id: "tool.removePassword", displayName: "移除密码", icon: "lock.open") { context in
+            context.removeSecurity()
+        }
         let permission = StubTool(id: "tool.permission", displayName: "权限管理", icon: "checkmark.shield")
-        tools = [encrypt, removePwd, permission]
-        activeTool = encrypt
+        tools = [addPassword, removePassword, permission]
+        activeTool = addPassword
     }
 }

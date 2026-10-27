@@ -33,6 +33,15 @@ struct PDFDocumentView: View {
         .sheet(isPresented: $vm.isPhotoBookPresented) {
             PhotoBookSheet()
         }
+        .sheet(isPresented: $vm.passwordMenuPresented) {
+            PasswordMenuSheet()
+        }
+        .sheet(item: $vm.passwordTab) { tab in
+            PasswordSheet(initialTab: tab)
+        }
+        .sheet(isPresented: $vm.showDocProperties) {
+            DocPropertiesSheet()
+        }
     }
 
     private var placeholder: some View {

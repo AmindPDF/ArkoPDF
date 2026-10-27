@@ -84,6 +84,11 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     /// 相册排版弹窗。
     @Published var isPhotoBookPresented = false
 
+    /// 密码/安全弹窗状态。
+    @Published var passwordMenuPresented = false
+    @Published var passwordTab: PasswordTab?
+    @Published var showDocProperties = false
+
     /// 保存进度状态（SaveProgressOverlay 用）。
     @Published var isSaving = false
     @Published var saveProgress: Double = 0
@@ -495,6 +500,45 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
 
     func showPhotoBook() {
         isPhotoBookPresented = true
+    }
+
+    // MARK: - 密码 / 安全
+
+    func showPasswordMenu() {
+        passwordMenuPresented = true
+    }
+
+    /// 设置安全：打开密码（userPassword）或权限密码（ownerPassword），以及加密算法与权限。
+    func setSecurity(ownerPassword: String?, userPassword: String?,
+                     encryption: EncryptionAlgorithm, encryptMetadata: Bool,
+                     printPerm: PrintPermission?, changePerm: ChangePermission?,
+                     allowCopy: Bool?, allowAccessibility: Bool?) {
+        guard let doc = document else { return }
+        let perms: UInt32
+        if let p = printPerm, let c = changePerm, let copy = allowCopy, let access = allowAccessibility {
+            perms = combinedPermissions(printPerm: p, changePerm: c, allowCopy: copy, allowAccessibility: access)
+        } else {
+            // 仅设打开密码（无权限密码）时保留全部权限
+            perms = UserPerm.print | UserPerm.printHigh | UserPerm.modify | UserPerm.assemble
+                  | UserPerm.fillForm | UserPerm.annotForm | UserPerm.extract | UserPerm.extractAccess
+        }
+        do {
+            _ = try doc.setSecurity(permissions: perms,
+                                    ownerPassword: ownerPassword, userPassword: userPassword,
+                                    cipher: encryption.cipher, keylen: encryption.keylen,
+                                    encryptMetadata: encryptMetadata)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func removeSecurity() {
+        guard let doc = document else { return }
+        do {
+            _ = try doc.removeSecurity()
+        } catch {
+            lastError = error.localizedDescription
+        }
     }
 
     /// 提取页面到新 PDF（不改当前文档，无撤销）。

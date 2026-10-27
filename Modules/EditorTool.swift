@@ -58,6 +58,10 @@ protocol ToolContext: AnyObject {
     func showPageSheet(_ kind: PageSheetKind)
     /// 弹出相册排版（PhotoBook）。
     func showPhotoBook()
+    /// 弹出添加密码下拉菜单。
+    func showPasswordMenu()
+    /// 移除文档安全设置。
+    func removeSecurity()
 }
 
 /// 工具协议。对应 Windows 的 tool 层。
