@@ -4,6 +4,7 @@
 import Foundation
 import AppKit
 import Combine
+import UniformTypeIdentifiers
 
 enum DisplayMode: String, CaseIterable, Identifiable {
     case single = "单页"
@@ -90,6 +91,9 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var showDocProperties = false
     /// 待保存的安全设置（内存暂存，保存文档后生效；nil = 不改变安全）。
     @Published var pendingSecurity: ArkoSecurityOptions?
+    /// 移除密码：确认对话框 / 完成对话框。
+    @Published var removePasswordConfirmPresented = false
+    @Published var removePasswordDonePresented = false
 
     /// 保存进度状态（SaveProgressOverlay 用）。
     @Published var isSaving = false
@@ -533,11 +537,42 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
         pendingSecurity = opts
     }
 
-    /// 移除安全（内存暂存，保存文档后生效）。
+    /// 点击「移除密码」：先弹出确认对话框（确认后才真正移除）。
     func removeSecurity() {
+        removePasswordConfirmPresented = true
+    }
+
+    func cancelRemovePassword() {
+        removePasswordConfirmPresented = false
+    }
+
+    /// 用户确认移除：内存暂存 removeSecurity 标记，弹出完成对话框。
+    func confirmRemoveSecurity() {
+        removePasswordConfirmPresented = false
         let opts = ArkoSecurityOptions()
         opts.removeSecurity = true
         pendingSecurity = opts
+        removePasswordDonePresented = true
+    }
+
+    func dismissRemovePasswordDone() {
+        removePasswordDonePresented = false
+    }
+
+    /// 完成对话框「保存」：关对话框后走保存流程。
+    func saveAfterRemovePassword() {
+        removePasswordDonePresented = false
+        saveDocument()
+    }
+
+    /// 弹出保存面板并保存（菜单「保存」与「移除密码完成」的「保存」按钮共用）。
+    func saveDocument() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.canCreateDirectories = true
+        if panel.runModal() == .OK, let url = panel.url {
+            save(to: url)
+        }
     }
 
     /// 提取页面到新 PDF（不改当前文档，无撤销）。

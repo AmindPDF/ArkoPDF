@@ -69,10 +69,6 @@ struct ArkoPDFApp: App {
     }
 
     private func save() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.pdf]
-        if panel.runModal() == .OK, let url = panel.url {
-            vm.save(to: url)
-        }
+        vm.saveDocument()
     }
 }
