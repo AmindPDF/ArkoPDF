@@ -234,6 +234,28 @@
     return list;
 }
 
+- (NSString *)pageText {
+    IPDF_PageText *pt = [self sdkPageText];
+    if (!pt) {
+        return @"";
+    }
+    int len = 0;
+    len = pt->GetAllText(NULL, &len);   // 第一次取长度
+    if (len <= 0) {
+        return @"";
+    }
+    char *buf = (char *)malloc((size_t)len + 1);
+    if (!buf) {
+        return @"";
+    }
+    int buflen = len;
+    int copied = pt->GetAllText(buf, &buflen);   // 第二次取文本
+    buf[copied] = 0;
+    NSString *text = [NSString stringWithUTF8String:buf];
+    free(buf);
+    return text ?: @"";
+}
+
 #pragma mark - 标注
 
 - (void)addTextMarkupOfType:(NSInteger)annotType

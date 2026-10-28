@@ -36,13 +36,35 @@ extension PDFEditorViewModel {
         }
     }
 
-    /// AI 语义对比（TODO：接入我方服务器 API / 自定义 LLM 后端）。
+    /// AI 语义对比：把有差异的页作为对齐段，送 AIProvider 分析。
     private func runAICompare(old: ArkoDocument, new: ArkoDocument) {
-        // 占位：后续在此调用 AIProvider 分段对齐 + LLM 分析，产出 summary/changes/risks。
-        compareAIResult = AICompareResult(
-            summary: "AI 语义分析待接入（基础对比结果已就绪）。",
-            changes: [],
-            risks: [])
+        var segments: [AICompareSegment] = []
+        for diff in compareDiffs {
+            let oldText = old.page(at: diff.pageIndex)?.pageText() ?? ""
+            let newText = new.page(at: diff.pageIndex)?.pageText() ?? ""
+            segments.append(AICompareSegment(location: "第 \(diff.pageIndex + 1) 页",
+                                             oldText: oldText, newText: newText))
+        }
+        guard !segments.isEmpty else {
+            compareAIResult = AICompareResult(summary: "未发现需 AI 分析的差异。", changes: [], risks: [])
+            return
+        }
+
+        let provider = AIProviderFactory.make(config: compareAIConfig)
+        compareAnalyzing = true
+        provider.analyze(segments: segments) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.compareAnalyzing = false
+                switch result {
+                case .success(let r):
+                    self.compareAIResult = r
+                case .failure(let e):
+                    self.compareAIResult = AICompareResult(
+                        summary: "AI 分析失败：\(e.localizedDescription)", changes: [], risks: [])
+                }
+            }
+        }
     }
 
     /// 指定页的对比差异（结果视图叠加用）。

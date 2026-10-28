@@ -13,9 +13,6 @@ struct CompareSetupSheet: View {
     @State private var newURL: URL?
     @State private var mode: CompareMode = .basic
     @State private var filters = CompareFilters()
-    @State private var llmSource: LLMSource = .builtin
-    @State private var llmProvider = "DeepSeek"
-    @State private var llmKey = ""
     @State private var privacyConfirmed = false
 
     private let providers = ["DeepSeek", "Qwen", "智谱 GLM", "OpenAI"]
@@ -75,20 +72,20 @@ struct CompareSetupSheet: View {
     private var aiConfig: some View {
         VStack(alignment: .leading, spacing: 12) {
             field("模型来源") {
-                Picker("", selection: $llmSource) {
+                Picker("", selection: $vm.compareAIConfig.source) {
                     ForEach(LLMSource.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.radioGroup).labelsHidden()
             }
-            if llmSource == .custom {
+            if vm.compareAIConfig.source == .custom {
                 field("模型供应商") {
-                    Picker("", selection: $llmProvider) {
+                    Picker("", selection: $vm.compareAIConfig.provider) {
                         ForEach(providers, id: \.self) { Text($0).tag($0) }
                     }
                     .labelsHidden()
                 }
                 field("API Key") {
-                    SecureField("sk-…", text: $llmKey).textFieldStyle(.roundedBorder)
+                    SecureField("sk-…", text: $vm.compareAIConfig.apiKey).textFieldStyle(.roundedBorder)
                 }
                 Toggle("我已知晓内容将发送至所选模型", isOn: $privacyConfirmed)
                     .toggleStyle(.checkbox)
@@ -265,6 +262,12 @@ struct CompareResultView: View {
 
     private var aiSidebar: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if vm.compareAnalyzing {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("正在 AI 分析…").font(.system(size: 12)).foregroundColor(.secondary)
+                }
+            }
             if !vm.compareAIResult.summary.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("修改摘要").font(.system(size: 12, weight: .semibold))

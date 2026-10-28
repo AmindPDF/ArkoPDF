@@ -33,6 +33,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// 文本对比：返回本页所有字符（文本流顺序）。每项 @{@"u":@unicode, @"x":@left, @"y":@bottom, @"w":@width, @"h":@height, @"fs":@fontSize}。
 - (NSArray<NSDictionary *> *)charInfoList;
 
+/// 整页文本（UTF-8，供 AI 对比提取）。
+- (nullable NSString *)pageText;
+
 /// 新建文本标记标注（高亮/下划线/删除线）。
 /// @param annotType ANNOT_TYPE_HIGHLIGHT / ANNOT_TYPE_UNDERLINE / ANNOT_TYPE_STRIKEOUT
 /// @param lineBoxes 每行一个 CGRect（PDF 用户坐标），内部展开为 QuadPoints。

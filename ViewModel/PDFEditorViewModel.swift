@@ -128,6 +128,8 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var compareNewDocument: ArkoDocument?
     @Published var compareNewURL: URL?
     @Published var compareAIResult = AICompareResult(summary: "", changes: [], risks: [])
+    @Published var compareAIConfig = AIConfig()
+    @Published var compareAnalyzing = false
     @Published var signatureAppearance = SignatureAppearance()
 
     /// 保存进度状态（SaveProgressOverlay 用）。
