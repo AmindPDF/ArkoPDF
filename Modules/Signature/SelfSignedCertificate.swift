@@ -124,8 +124,12 @@ enum SelfSignedCertificate {
         ]
         var error: Unmanaged<CFError>?
         guard let privateKey = SecKeyCreateRandomKey(keyAttrs as CFDictionary, &error) else {
-            let nsError = error?.takeRetainedValue() as NSError?
-            NSLog("[ArkoPDF SelfSigned] SecKeyCreateRandomKey failed: %@", nsError?.localizedDescription ?? "unknown")
+            var desc = "unknown"
+            if let cfError = error?.takeRetainedValue(),
+               let cfDesc = CFErrorCopyDescription(cfError) {
+                desc = cfDesc as String
+            }
+            NSLog("[ArkoPDF SelfSigned] SecKeyCreateRandomKey failed: %@", desc)
             return nil
         }
         guard let publicKey = SecKeyCopyPublicKey(privateKey) else {
