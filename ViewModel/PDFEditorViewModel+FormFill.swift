@@ -21,17 +21,17 @@ extension PDFEditorViewModel {
         guard let doc = document, let ff = doc.formFill, let page = doc.page(at: pageIndex) else {
             return false
         }
-        let mod = modifiers.contains(.shift) ? 1 : 0   // 简化：仅区分 shift
+        let mod: Int32 = modifiers.contains(.shift) ? 1 : 0   // 简化：仅区分 shift
         switch phase {
         case .down:
-            let type = ff.formFieldType(atPage: page, x: userPoint.x, y: userPoint.y)
+            let type = ff.formFieldType(at: page, x: userPoint.x, y: userPoint.y)
             guard type >= 0 else { return false }
-            formFillActive = ff.onLButtonDown(atPage: page, x: userPoint.x, y: userPoint.y, modifier: mod)
+            formFillActive = ff.onLButtonDown(at: page, x: userPoint.x, y: userPoint.y, modifier: mod)
             return formFillActive
         case .up:
             if formFillActive {
                 formFillActive = false
-                _ = ff.onLButtonUp(atPage: page, x: userPoint.x, y: userPoint.y, modifier: mod)
+                _ = ff.onLButtonUp(at: page, x: userPoint.x, y: userPoint.y, modifier: mod)
                 return true
             }
             return false
@@ -45,7 +45,7 @@ extension PDFEditorViewModel {
         guard let doc = document, let ff = doc.formFill, let page = doc.page(at: currentPage) else {
             return false
         }
-        return ff.onKeyDown(atPage: page, keyCode: keyCode, modifier: modifier)
+        return ff.onKeyDown(at: page, keyCode: Int32(keyCode), modifier: Int32(modifier))
     }
 
     /// 字符输入路由到表单填充。
@@ -53,7 +53,7 @@ extension PDFEditorViewModel {
         guard let doc = document, let ff = doc.formFill, let page = doc.page(at: currentPage) else {
             return false
         }
-        return ff.onChar(atPage: page, nChar: nChar, modifier: modifier)
+        return ff.onChar(at: page, nChar: Int32(nChar), modifier: Int32(modifier))
     }
 
     /// 保存前失焦表单字段（把正在编辑的值写回字段）。
