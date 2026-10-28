@@ -124,12 +124,16 @@ enum SelfSignedCertificate {
         ]
         var error: Unmanaged<CFError>?
         guard let privateKey = SecKeyCreateRandomKey(keyAttrs as CFDictionary, &error) else {
+            let nsError = error?.takeRetainedValue() as NSError?
+            NSLog("[ArkoPDF SelfSigned] SecKeyCreateRandomKey failed: %@", nsError?.localizedDescription ?? "unknown")
             return nil
         }
         guard let publicKey = SecKeyCopyPublicKey(privateKey) else {
+            NSLog("[ArkoPDF SelfSigned] SecKeyCopyPublicKey failed")
             return nil
         }
         guard let pubData = SecKeyCopyExternalRepresentation(publicKey, &error) as Data? else {
+            NSLog("[ArkoPDF SelfSigned] SecKeyCopyExternalRepresentation failed")
             return nil
         }
 
@@ -138,6 +142,7 @@ enum SelfSignedCertificate {
                                         publicKeyDER: pubData, privateKey: privateKey,
                                         validityYears: validityYears)
         guard let cert = SecCertificateCreateWithData(nil, der as CFData) else {
+            NSLog("[ArkoPDF SelfSigned] SecCertificateCreateWithData failed (invalid DER?)")
             return nil
         }
 
@@ -149,11 +154,12 @@ enum SelfSignedCertificate {
     /// SecIdentityCreateWithCertificate 通过在 keychain 里按「证书公钥 SHA-1 == 私钥
     /// kSecAttrApplicationLabel」匹配私钥；而 SecKeyCreateRandomKey 未必正确写入该标签，
     /// 故先直接尝试，失败则补写标签（并把证书一并写入 keychain）后重试。
+    /// 所有 Security 调用失败时都打日志（返回码 + 可读错误），便于在 Mac 上定位。
     private static func makeIdentity(cert: SecCertificate, publicKeyDER: Data, keyLabel: String) -> SecIdentity? {
         var identity: SecIdentity?
-        if SecIdentityCreateWithCertificate(nil, cert, &identity) == errSecSuccess, let id = identity {
-            return id
-        }
+        let s1 = SecIdentityCreateWithCertificate(nil, cert, &identity)
+        if s1 == errSecSuccess, let id = identity { return id }
+        Self.logSecError(s1, "SecIdentityCreateWithCertificate (primary)")
 
         // 兜底 1：给私钥补 kSecAttrApplicationLabel（= 公钥 SHA-1）
         let pubKeyHash = Self.sha1(publicKeyDER)
@@ -164,7 +170,8 @@ enum SelfSignedCertificate {
         let keyUpdate: [String: Any] = [
             kSecAttrApplicationLabel as String: pubKeyHash,
         ]
-        _ = SecItemUpdate(keyQuery as CFDictionary, keyUpdate as CFDictionary)
+        Self.logSecError(SecItemUpdate(keyQuery as CFDictionary, keyUpdate as CFDictionary),
+                         "SecItemUpdate(kSecAttrApplicationLabel)")
 
         // 兜底 2：把证书也写入 keychain（带同一 application label，便于与私钥关联）
         let certItem: [String: Any] = [
@@ -172,13 +179,21 @@ enum SelfSignedCertificate {
             kSecValueRef as String: cert,
             kSecAttrApplicationLabel as String: pubKeyHash,
         ]
-        _ = SecItemDelete(certItem as CFDictionary)   // 已存在则先删，避免重复
-        _ = SecItemAdd(certItem as CFDictionary, nil)
+        _ = SecItemDelete(certItem as CFDictionary)   // 已存在则先删，避免重复（失败是预期的）
+        Self.logSecError(SecItemAdd(certItem as CFDictionary, nil), "SecItemAdd(certificate)")
 
-        if SecIdentityCreateWithCertificate(nil, cert, &identity) == errSecSuccess, let id = identity {
-            return id
-        }
+        var retryIdentity: SecIdentity?
+        let s2 = SecIdentityCreateWithCertificate(nil, cert, &retryIdentity)
+        if s2 == errSecSuccess, let id = retryIdentity { return id }
+        Self.logSecError(s2, "SecIdentityCreateWithCertificate (retry)")
         return nil
+    }
+
+    /// 仅在失败时打印 Security 返回码的可读错误。
+    private static func logSecError(_ status: OSStatus, _ context: String) {
+        guard status != errSecSuccess else { return }
+        let message = SecCopyErrorMessageString(status, nil) as String? ?? "unknown error"
+        NSLog("[ArkoPDF SelfSigned] %@ → %@ (%d)", context, message, status)
     }
 
     /// SHA-1（keychain 的 kSecAttrApplicationLabel 约定为公钥的 SHA-1）。
