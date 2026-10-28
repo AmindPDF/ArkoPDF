@@ -27,6 +27,12 @@ struct ContentView: View {
                                     isCancelable: true) { vm.cancelSave() }
             }
 
+            // 对比进度覆盖层
+            if vm.compareRunning {
+                CompareProgressOverlay(text: vm.compareProgressText,
+                                       progress: vm.compareAnalyzing ? nil : vm.compareProgress)
+            }
+
             // 移除密码：确认对话框
             if vm.removePasswordConfirmPresented {
                 AlertOverlay {

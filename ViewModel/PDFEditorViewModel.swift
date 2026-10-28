@@ -130,6 +130,9 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var compareAIResult = AICompareResult(summary: "", changes: [], risks: [])
     @Published var compareAIConfig = AIConfig()
     @Published var compareAnalyzing = false
+    @Published var compareRunning = false
+    @Published var compareProgress: Double = 0
+    @Published var compareProgressText = "正在准备…"
     @Published var signatureAppearance = SignatureAppearance()
 
     /// 保存进度状态（SaveProgressOverlay 用）。

@@ -16,9 +16,10 @@ enum CompareEngine {
     static let headerRatio: CGFloat = 0.08
     static let footerRatio: CGFloat = 0.06
 
-    /// 对比两个文档，逐页返回差异（仅包含有差异的页）。
+    /// 对比两个文档，逐页返回差异（仅包含有差异的页）。progress 为逐页进度回调（0~1）。
     static func compare(old: ArkoDocument, new: ArkoDocument,
-                        filters: CompareFilters = CompareFilters()) -> [PageDiff] {
+                        filters: CompareFilters = CompareFilters(),
+                        progress: ((Double) -> Void)? = nil) -> [PageDiff] {
         let pageCount = max(old.pageCount, new.pageCount)
         var results: [PageDiff] = []
         for p in 0..<pageCount {
@@ -28,6 +29,7 @@ enum CompareEngine {
             if !diff.isEmpty {
                 results.append(diff)
             }
+            progress?(Double(p + 1) / Double(pageCount))
         }
         return results
     }

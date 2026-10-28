@@ -428,3 +428,32 @@ struct CompareExportSheet: View {
         }
     }
 }
+
+// MARK: - 对比进度覆盖层
+
+struct CompareProgressOverlay: View {
+    let text: String
+    let progress: Double?   // nil = 不确定（spinner）
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.18).ignoresSafeArea()
+            VStack(spacing: 14) {
+                Text("正在对比文档").font(.headline)
+                if let p = progress {
+                    ProgressView(value: p).progressViewStyle(.linear).frame(width: 260)
+                } else {
+                    ProgressView().controlSize(.small)
+                }
+                Text(text).font(.system(size: 12)).foregroundColor(.secondary)
+            }
+            .padding(22)
+            .frame(width: 340)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(nsColor: .windowBackgroundColor))
+                    .shadow(color: .black.opacity(0.22), radius: 16, y: 5)
+            )
+        }
+    }
+}
