@@ -143,7 +143,8 @@ extension PDFEditorViewModel {
 
     /// 合并版 PDF（标记版）：以旧文档为底，删除红框、新增绿框，导出到 url。
     private func exportMergedPDF(to url: URL) {
-        guard let old = document, let path = old.filePath else { return }
+        guard let old = document else { return }
+        let path = old.filePath
         do {
             let copy = try ArkoDocument(url: URL(fileURLWithPath: path))
             defer { copy.close() }
