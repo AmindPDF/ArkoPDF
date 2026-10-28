@@ -101,8 +101,9 @@ enum CertificateManager {
         CMSDecoderFinalizeMessage(dec)
 
         // 5. 签名者状态
+        let policy = SecPolicyCreateBasicX509()
         var status: CMSSignerStatus = .unsigned
-        CMSDecoderCopySignerStatus(dec, 0, nil, false, &status, nil, nil)
+        CMSDecoderCopySignerStatus(dec, 0, policy, false, &status, nil, nil)
         return status == .valid
     }
 }

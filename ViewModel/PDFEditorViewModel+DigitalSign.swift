@@ -102,11 +102,12 @@ extension PDFEditorViewModel {
 
         let mdp: Int32 = lockDocument ? 1 : 0
         do {
-            return try ArkoDigitalSign().sign(document: doc, pageIndex: pageIndex, rect: rect,
-                                              identity: credential.identity,
-                                              name: name, reason: reason, location: location,
-                                              logoPath: logoPath, mdp: mdp,
-                                              opacity: appearance.opacity, to: url)
+            try ArkoDigitalSign().sign(document: doc, pageIndex: pageIndex, rect: rect,
+                                       identity: credential.identity,
+                                       name: name, reason: reason, location: location,
+                                       logoPath: logoPath, mdp: mdp,
+                                       opacity: appearance.opacity, to: url)
+            return true
         } catch {
             lastError = error.localizedDescription
             return false
