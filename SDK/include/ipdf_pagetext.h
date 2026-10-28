@@ -16,6 +16,19 @@ class IPDF_Page;
 
 /*@}*/
 
+/** @brief Per-character info (mirrors PDFium FPDF_CHAR_INFO) for text comparison. */
+typedef struct _PDSDK_CharInfo {
+	wchar_t	unicode;		/* 字符（Unicode 码点） */
+	float	origin_x;		/* 原点 X（PDF 用户坐标） */
+	float	origin_y;		/* 原点 Y */
+	float	box_left;		/* 字符包围盒 left */
+	float	box_top;		/* top */
+	float	box_right;		/* right */
+	float	box_bottom;		/* bottom */
+	float	font_size;		/* 字号 */
+	int		flag;			/* 标志位（换行/连字符等，CHAR_NORMAL=0） */
+} PDSDK_CharInfo;
+
 /** @brief PDF Text Page Interface. */
 class IPDF_PageText
 {
@@ -161,6 +174,14 @@ public:
 
 	/** Not support now. */
 	virtual int GetWordBreak(int caret, int direction) const = 0;
+
+	/**
+	 * @brief Get per-character info at the given char index (for text comparison).
+	 *
+	 * @param[in] index		Zero-based char index, range 0..CountChars()-1.
+	 * @param[out] info		Receives unicode / origin / bbox / font size / flag.
+	 */
+	virtual void GetCharInfo(int index, PDSDK_CharInfo* info) = 0;
 
 	/*@}*/
 

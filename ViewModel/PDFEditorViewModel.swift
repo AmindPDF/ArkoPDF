@@ -118,6 +118,10 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var selectedSignature: DocumentSignature?
     @Published var signingIdentities: [SigningIdentity] = []
     @Published var documentSignatures: [DocumentSignature] = []
+    /// 文档对比：逐页差异 + 模式开关 + 汇总对话框。
+    @Published var compareDiffs: [PageDiff] = []
+    @Published var compareActive = false
+    @Published var compareSummaryPresented = false
     @Published var signatureAppearance = SignatureAppearance()
 
     /// 保存进度状态（SaveProgressOverlay 用）。

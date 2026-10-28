@@ -212,6 +212,28 @@
     return rects;
 }
 
+- (NSArray<NSDictionary *> *)charInfoList {
+    IPDF_PageText *pt = [self sdkPageText];
+    if (!pt) {
+        return @[];
+    }
+    int n = pt->CountChars();
+    NSMutableArray<NSDictionary *> *list = [NSMutableArray arrayWithCapacity:(NSUInteger)n];
+    for (int i = 0; i < n; i++) {
+        PDSDK_CharInfo info;
+        pt->GetCharInfo(i, &info);
+        [list addObject:@{
+            @"u": @((int)info.unicode),
+            @"x": @((double)info.box_left),
+            @"y": @((double)info.box_bottom),
+            @"w": @((double)(info.box_right - info.box_left)),
+            @"h": @((double)(info.box_top - info.box_bottom)),
+            @"fs": @((double)info.font_size),
+        }];
+    }
+    return list;
+}
+
 #pragma mark - 标注
 
 - (void)addTextMarkupOfType:(NSInteger)annotType

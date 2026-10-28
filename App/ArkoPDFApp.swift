@@ -31,6 +31,8 @@ struct ArkoPDFApp: App {
 
                 Button("保存") { save() }
                     .keyboardShortcut("s", modifiers: .command)
+
+                Button("文档对比…") { compare() }
             }
 
             // 撤销/重做（自定义 ArkoUndoManager，替换默认的 Cocoa undo/redo）
@@ -70,5 +72,15 @@ struct ArkoPDFApp: App {
 
     private func save() {
         vm.saveDocument()
+    }
+
+    private func compare() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        if panel.runModal() == .OK, let url = panel.url {
+            vm.runCompare(withNewDocumentAt: url)
+        }
     }
 }

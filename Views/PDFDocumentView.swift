@@ -64,6 +64,9 @@ struct PDFDocumentView: View {
         .sheet(isPresented: $vm.sigPropPresented) {
             SignaturePropertiesSheet()
         }
+        .sheet(isPresented: $vm.compareSummaryPresented) {
+            CompareSummarySheet()
+        }
         .onDeleteCommand {
             vm.deleteSelectedImage()
         }
@@ -308,6 +311,7 @@ final class PDFPageCanvasView: NSView {
         vm.$imageSelection.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$linkDraft.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
         vm.$redactionDraft.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
+        vm.$compareDiffs.sink { [weak self] _ in self?.needsDisplay = true }.store(in: &cancellables)
     }
 
     private var pageSize: CGSize {
@@ -371,6 +375,11 @@ final class PDFPageCanvasView: NSView {
         if let rd = vm.redactionDraft, rd.pageIndex == pageIndex {
             drawRedactionDraft(rd.rect, pageSize: size)
         }
+
+        // 文档对比：删除（红）/ 新增（绿）高亮
+        if vm.compareActive, let diff = vm.compareDiff(forPage: pageIndex) {
+            drawCompareOverlay(diff, pageSize: size)
+        }
     }
 
     private func drawRedactionDraft(_ rect: CGRect, pageSize: CGSize) {
@@ -378,6 +387,20 @@ final class PDFPageCanvasView: NSView {
         let r = userToView(rect, pageSize: pageSize)
         ctx.setFillColor(NSColor.black.withAlphaComponent(0.35).cgColor)
         ctx.fill(r)
+    }
+
+    private func drawCompareOverlay(_ diff: PageDiff, pageSize: CGSize) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let deletedColor = NSColor(srgbRed: 1.0, green: 0.2, blue: 0.2, alpha: 0.35)
+        let addedColor = NSColor(srgbRed: 0.1, green: 0.7, blue: 0.25, alpha: 0.35)
+        ctx.setFillColor(deletedColor.cgColor)
+        for r in diff.deletedRects {
+            ctx.fill(userToView(r, pageSize: pageSize))
+        }
+        ctx.setFillColor(addedColor.cgColor)
+        for r in diff.addedRects {
+            ctx.fill(userToView(r, pageSize: pageSize))
+        }
     }
 
     private func drawParagraphSelection(_ boxes: [CGRect], pageSize: CGSize) {
