@@ -399,7 +399,7 @@ struct CompareExportSheet: View {
             HStack {
                 Spacer()
                 Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("导出") { dismiss() }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+                Button("导出") { export() }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
             }
             .padding(14)
         }
@@ -410,6 +410,21 @@ struct CompareExportSheet: View {
         VStack(alignment: .leading, spacing: 5) {
             Text(label).font(.system(size: 12)).foregroundColor(.secondary)
             content()
+        }
+    }
+
+    private func export() {
+        let panel = NSSavePanel()
+        if format == 0 {
+            panel.allowedContentTypes = [.plainText]
+            panel.nameFieldStringValue = "对比报告.txt"
+        } else {
+            panel.allowedContentTypes = [.pdf]
+            panel.nameFieldStringValue = "对比结果.pdf"
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            vm.exportCompareReport(to: url, format: format)
+            dismiss()
         }
     }
 }

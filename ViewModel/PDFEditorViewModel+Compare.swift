@@ -81,4 +81,16 @@ extension PDFEditorViewModel {
         compareAIResult = AICompareResult(summary: "", changes: [], risks: [])
         compareResultPresented = false
     }
+
+    /// 导出对比报告。format：0=纯文本清单，1=合并版 PDF（暂未实现）。
+    func exportCompareReport(to url: URL, format: Int) {
+        guard let old = document, let new = compareNewDocument else { return }
+        if format == 0 {
+            let ai = compareMode == .ai ? compareAIResult : nil
+            let text = CompareExportEngine.buildTextReport(old: old, new: new, diffs: compareDiffs, aiResult: ai)
+            try? text.write(to: url, atomically: true, encoding: .utf8)
+        } else {
+            lastError = "合并版 PDF 导出暂未实现"
+        }
+    }
 }

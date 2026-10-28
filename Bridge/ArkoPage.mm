@@ -256,6 +256,23 @@
     return text ?: @"";
 }
 
+- (NSString *)textInRect:(CGRect)rect {
+    IPDF_PageText *pt = [self sdkPageText];
+    if (!pt) {
+        return @"";
+    }
+    PDSDK_FloatRect r;
+    r.left = (float)CGRectGetMinX(rect);
+    r.bottom = (float)CGRectGetMinY(rect);
+    r.right = (float)CGRectGetMaxX(rect);
+    r.top = (float)CGRectGetMaxY(rect);
+    const char *utf8 = pt->GetTextByRectUTF8(&r);
+    if (!utf8) {
+        return @"";
+    }
+    return [NSString stringWithUTF8String:utf8] ?: @"";
+}
+
 #pragma mark - 标注
 
 - (void)addTextMarkupOfType:(NSInteger)annotType

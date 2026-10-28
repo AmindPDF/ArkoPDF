@@ -36,6 +36,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// 整页文本（UTF-8，供 AI 对比提取）。
 - (nullable NSString *)pageText;
 
+/// 指定矩形区域内的文本（UTF-8，供导出报告用）。
+- (nullable NSString *)textInRect:(CGRect)rect NS_SWIFT_NAME(text(inRect:));
+
 /// 新建文本标记标注（高亮/下划线/删除线）。
 /// @param annotType ANNOT_TYPE_HIGHLIGHT / ANNOT_TYPE_UNDERLINE / ANNOT_TYPE_STRIKEOUT
 /// @param lineBoxes 每行一个 CGRect（PDF 用户坐标），内部展开为 QuadPoints。
