@@ -109,6 +109,8 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var redactionDraft: (pageIndex: Int, rect: CGRect)?
     @Published var redactAppearancePresented = false
     @Published var redactApplyConfirmPresented = false
+    @Published var redactSignedWarningPresented = false
+    @Published var batchRedactPresented = false
     /// 数字签名：对话框 + 身份/签名数据源。
     @Published var signDocPresented = false
     @Published var newCertPresented = false

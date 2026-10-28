@@ -26,8 +26,9 @@ struct RedactionOptionsBar: View {
                 .buttonStyle(.plain)
             }
             Divider().frame(height: 18)
+            Button("批量密文…") { vm.batchRedactPresented = true }
             Button("外观设置…") { vm.redactAppearancePresented = true }
-            Button("应用密文…") { vm.redactApplyConfirmPresented = true }
+            Button("应用密文…") { vm.requestApplyRedactions() }
                 .buttonStyle(.borderedProminent)
         }
         .padding(.horizontal, 12)
@@ -204,5 +205,69 @@ struct RedactionAppearanceSheet: View {
         a.fontColor = fontColor
         a.alignment = alignment
         vm.redactionAppearance = a
+    }
+}
+
+// MARK: - 批量密文对话框
+
+struct BatchRedactionSheet: View {
+    @EnvironmentObject var vm: PDFEditorViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var searchText = ""
+    @State private var matches: [RedactionMatch] = []
+    @State private var searched = false
+
+    private var totalRects: Int { matches.reduce(0) { $0 + $1.rects.count } }
+    private var trimmedText: String { searchText.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("批量密文").font(.headline).padding(16)
+            Divider()
+
+            VStack(alignment: .leading, spacing: 14) {
+                Text("输入要搜索并密文的文字，将在整篇文档中查找所有出现位置。")
+                    .font(.system(size: 12.5)).foregroundColor(.secondary)
+                TextField("搜索文字", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+
+                if searched {
+                    Text(totalRects > 0
+                         ? "找到 \(matches.count) 处匹配（共 \(totalRects) 个矩形）"
+                         : "未找到匹配")
+                        .font(.system(size: 12.5))
+                        .foregroundColor(totalRects > 0 ? .primary : .secondary)
+                }
+            }
+            .padding(16)
+
+            Divider()
+            HStack {
+                Spacer()
+                Button("取消") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("搜索") { search() }
+                Button("标记全部") { markAll() }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(trimmedText.isEmpty || totalRects == 0)
+            }
+            .padding(14)
+        }
+        .frame(width: 460)
+    }
+
+    private func search() {
+        guard let doc = vm.document else { return }
+        matches = RedactionEngine.search(document: doc, text: searchText)
+        searched = true
+    }
+
+    private func markAll() {
+        for m in matches {
+            vm.markRedaction(rects: m.rects, pageIndex: m.pageIndex)
+        }
+        dismiss()
     }
 }

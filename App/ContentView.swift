@@ -68,6 +68,20 @@ struct ContentView: View {
                                 ])
                 }
             }
+
+            // 密文：已签名文档警告
+            if vm.redactSignedWarningPresented {
+                AlertOverlay {
+                    AlertDialog(icon: "exclamationmark.triangle",
+                                tone: .danger,
+                                title: "文档已数字签名",
+                                message: "此文档包含数字签名，应用密文会删除内容并使现有签名失效。\n确定要继续吗？",
+                                buttons: [
+                                    AlertDialogButton("取消") { vm.redactSignedWarningPresented = false },
+                                    AlertDialogButton("继续", role: .primary) { vm.redactSignedWarningPresented = false; vm.applyRedactions() },
+                                ])
+                }
+            }
         }
     }
 }

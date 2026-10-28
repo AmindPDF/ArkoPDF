@@ -52,4 +52,13 @@ extension PDFEditorViewModel {
         }
         invalidateAllPages()
     }
+
+    /// 请求应用密文：文档已数字签名时先弹「会使签名失效」警告，否则直接进入确认。
+    func requestApplyRedactions() {
+        if (document?.signatureCount ?? 0) > 0 {
+            redactSignedWarningPresented = true
+        } else {
+            redactApplyConfirmPresented = true
+        }
+    }
 }

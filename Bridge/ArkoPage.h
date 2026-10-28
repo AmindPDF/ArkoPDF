@@ -27,6 +27,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// 选区文本（UTF-8）。
 - (nullable NSString *)selectedTextFromCaret:(NSInteger)start toCaret:(NSInteger)end;
 
+/// 搜索本页所有匹配文字的矩形（PDF 用户坐标，NSValue 包 CGRect，y 为 bottom）。返回空数组表示无匹配。
+- (NSArray<NSValue *> *)searchTextRects:(NSString *)text;
+
 /// 新建文本标记标注（高亮/下划线/删除线）。
 /// @param annotType ANNOT_TYPE_HIGHLIGHT / ANNOT_TYPE_UNDERLINE / ANNOT_TYPE_STRIKEOUT
 /// @param lineBoxes 每行一个 CGRect（PDF 用户坐标），内部展开为 QuadPoints。

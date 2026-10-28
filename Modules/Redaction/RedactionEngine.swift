@@ -55,10 +55,19 @@ enum RedactionEngine {
     }
 
     /// 搜索文字出现位置（批量密文用）。
-    /// Phase B：基于 PDF 文本层定位文字矩形。
+    /// 基于 ArkoPDFCore 的 IPDF_PageText::FindFirst/FindNext 逐页搜索，返回每处命中的矩形。
     static func search(document: ArkoDocument, text: String) -> [RedactionMatch] {
-        // TODO(Phase B): ArkoPDFCore::SearchText(text) -> 每处命中矩形
-        return []
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        var matches: [RedactionMatch] = []
+        for p in 0..<document.pageCount {
+            guard let page = document.page(at: p) else { continue }
+            let rects = page.searchTextRects(trimmed).map { $0.rectValue }
+            if !rects.isEmpty {
+                matches.append(RedactionMatch(pageIndex: p, rects: rects))
+            }
+        }
+        return matches
     }
 
     /// 批量密文：搜索文字并自动标记（后续批量功能直接调用此入口）。

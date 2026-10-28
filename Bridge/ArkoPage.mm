@@ -175,6 +175,43 @@
     return [NSString stringWithUTF8String:utf8];
 }
 
+- (NSArray<NSValue *> *)searchTextRects:(NSString *)text {
+    IPDF_PageText *pt = [self sdkPageText];
+    if (!pt || text.length == 0) {
+        return @[];
+    }
+
+    // NSString → wchar_t（macOS wchar_t 为 32 位，BMP 字符直接取 UTF-16 码元）
+    NSUInteger len = text.length;
+    wchar_t *wbuf = (wchar_t *)malloc(sizeof(wchar_t) * (len + 1));
+    if (!wbuf) {
+        return @[];
+    }
+    for (NSUInteger i = 0; i < len; i++) {
+        wbuf[i] = (wchar_t)[text characterAtIndex:i];
+    }
+    wbuf[len] = 0;
+
+    NSMutableArray<NSValue *> *rects = [NSMutableArray array];
+    // 参考 Windows advschdlgs.cpp：FindFirst 初始化 → 循环 FindNext 取每个匹配的矩形。
+    if (pt->FindFirst(wbuf, 0, 0)) {
+        while (pt->FindNext()) {
+            int nRects = pt->GetMatchedTextRectCount();
+            for (int j = 0; j < nRects; j++) {
+                PDSDK_FloatRect r;
+                pt->GetMatchedTextRect(j, &r);
+                CGRect c = CGRectMake((CGFloat)r.left,
+                                      (CGFloat)r.bottom,
+                                      (CGFloat)(r.right - r.left),
+                                      (CGFloat)(r.top - r.bottom));
+                [rects addObject:[NSValue valueWithRect:c]];
+            }
+        }
+    }
+    free(wbuf);
+    return rects;
+}
+
 #pragma mark - 标注
 
 - (void)addTextMarkupOfType:(NSInteger)annotType

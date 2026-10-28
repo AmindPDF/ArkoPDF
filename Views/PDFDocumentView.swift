@@ -52,6 +52,9 @@ struct PDFDocumentView: View {
         .sheet(isPresented: $vm.redactAppearancePresented) {
             RedactionAppearanceSheet()
         }
+        .sheet(isPresented: $vm.batchRedactPresented) {
+            BatchRedactionSheet()
+        }
         .sheet(isPresented: $vm.signDocPresented) {
             DigitalSignSheet()
         }
