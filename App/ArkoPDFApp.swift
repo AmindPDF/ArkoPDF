@@ -75,12 +75,6 @@ struct ArkoPDFApp: App {
     }
 
     private func compare() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.pdf]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        if panel.runModal() == .OK, let url = panel.url {
-            vm.runCompare(withNewDocumentAt: url)
-        }
+        vm.startCompare()
     }
 }
