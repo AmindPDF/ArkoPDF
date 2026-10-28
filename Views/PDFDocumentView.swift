@@ -488,9 +488,41 @@ final class PDFPageCanvasView: NSView {
 
     // MARK: 鼠标路由
 
-    override func mouseDown(with event: NSEvent) { route(.down, event) }
+    override var acceptsFirstResponder: Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        route(.down, event)
+    }
     override func mouseDragged(with event: NSEvent) { route(.drag, event) }
     override func mouseUp(with event: NSEvent) { route(.up, event) }
+
+    // 键盘：路由到表单填充（文本框输入）
+    override func keyDown(with event: NSEvent) {
+        guard let vm = viewModel else { super.keyDown(with: event); return }
+        if vm.routeFormFillKey(keyCode: Int(event.keyCode), modifier: 0) {
+            vm.invalidateAllPages()
+        } else {
+            super.keyDown(with: event)
+        }
+    }
+
+    override func insertText(_ insertString: Any) {
+        guard let vm = viewModel, let str = insertString as? String else {
+            super.insertText(insertString); return
+        }
+        var handled = false
+        for scalar in str.unicodeScalars {
+            if vm.routeFormFillChar(nChar: Int(scalar.value), modifier: 0) {
+                handled = true
+            }
+        }
+        if handled {
+            vm.invalidateAllPages()
+        } else {
+            super.insertText(insertString)
+        }
+    }
 
     // 阅读模式悬停捕获：追踪鼠标移动，命中标注则手型光标 + 记录 hover
     override func updateTrackingAreas() {

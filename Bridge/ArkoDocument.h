@@ -5,6 +5,7 @@
 
 @class ArkoPage;
 @class ArkoDocument;
+@class ArkoFormFill;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -47,6 +48,8 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 - (nullable instancetype)initWithURL:(NSURL *)url password:(nullable NSString *)password error:(NSError **)error;
 @property (nonatomic, readonly) NSInteger pageCount;
 - (nullable ArkoPage *)pageAtIndex:(NSInteger)index;
+/// 表单填充环境（文档打开后创建；无表单的文档也可能为 nil）。
+@property (nonatomic, readonly, nullable) ArkoFormFill *formFill;
 - (BOOL)saveToURL:(NSURL *)url
          progress:(nullable void (^)(float))progress
        isCancelled:(nullable BOOL (^)(void))isCancelled

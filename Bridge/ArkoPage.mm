@@ -2,6 +2,7 @@
 
 #import "ArkoPage.h"
 #import "ArkoParagraph.h"
+#import "ArkoFormFill.h"
 #include "ArkoBitmap.h"
 #include "ipdf_base.h"
 #include "ipdf_page.h"
@@ -11,6 +12,7 @@
 #include "ipdf_paragraph.h"
 #include "ipdf_pageobject.h"
 #include "ipdf_sign.h"
+#include "ipdf_formfill.h"
 #include <string>
 
 @implementation ArkoPage {
@@ -115,6 +117,12 @@
     IPDF_AnnotList *annots = [self sdkAnnotList];
     if (annots) {
         annots->DisplayAnnots(_page, bmp, ctm, 0);
+    }
+
+    // 表单字段（widget）叠加渲染
+    IPDF_FormFill *ff = (IPDF_FormFill*)ArkoGetSDKFormFill();
+    if (ff) {
+        ff->DrawFields(_page, bmp, 0, 0, pxW, pxH, 0, 0);
     }
 
     CGImageRef img = ArkoCGImageCreateFromDIBitmap(bmp);

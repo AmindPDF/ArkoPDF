@@ -1,6 +1,7 @@
 //  ArkoDocument.mm
 
 #import "ArkoDocument.h"
+#import "ArkoFormFill.h"
 #import "ArkoPage.h"
 #import <CoreText/CoreText.h>
 #include "ipdf_base.h"
@@ -84,6 +85,14 @@ static NSString *ArkoWideToString(const wchar_t *w, int maxLen) {
         IPDF_Page *page = _doc->GetPage(i);
         ArkoPage *wrapper = [[ArkoPage alloc] initWithSDKPage:page index:i];
         [_pages addObject:wrapper];
+    }
+
+    // 表单填充环境 + 页面加载钩子
+    _formFill = [[ArkoFormFill alloc] initWithSDKDocument:_doc];
+    if (_formFill) {
+        for (ArkoPage *page in _pages) {
+            [_formFill onAfterLoadPage:page];
+        }
     }
     return self;
 }
@@ -645,6 +654,15 @@ static int *ArkoIntArrayFromPages(NSArray<NSNumber *> *pages) {
 
 - (void)close {
     if (_doc) {
+        // 表单字段先失焦保存 + 页面关闭钩子
+        if (_formFill) {
+            [_formFill forceKillFocus];
+            for (ArkoPage *page in _pages) {
+                [_formFill onBeforeClosePage:page];
+            }
+            [_formFill close];
+            _formFill = nil;
+        }
         // 先释放各页（各自 Release 其 IPDF_Page / PageText / AnnotList），再关闭文档。
         _pages = nil;
         _doc->Close(0);

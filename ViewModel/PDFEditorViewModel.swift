@@ -59,6 +59,8 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var displayMode: DisplayMode = .singleContinuous
     @Published var selection: TextSelection?
     @Published var lastError: String?
+    /// 表单填充是否接管了当前点击交互（内部状态）。
+    var formFillActive = false
 
     // MARK: - 标注状态
     @Published var markupColor: MarkupColor = .yellow
@@ -456,6 +458,10 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
             }
             return
         }
+        // 表单填充优先：点击表单字段时交给表单引擎
+        if routeFormFill(phase: phase, pageIndex: pageIndex, userPoint: userPoint, modifiers: modifiers) {
+            return
+        }
         let event = ToolMouseEvent(pageIndex: pageIndex, point: userPoint, modifiers: modifiers, clickCount: clickCount)
         activeModule?.route(phase, event, context: self)
     }
@@ -738,6 +744,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
                 refreshAnnotations()
                 refreshOutline()
                 refreshSignatures()
+                setupFormFillCallbacks()
             }
         } catch {
             document = nil
@@ -749,6 +756,7 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     func save(to url: URL) {
         guard let doc = document else { return }
         let security = pendingSecurity  // 快照：本次保存应用的安全设置
+        commitFormFill()  // 保存前提交正在编辑的表单字段值
         isSaving = true
         saveProgress = 0
         saveTitle = "保存…"
