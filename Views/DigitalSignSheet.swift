@@ -291,8 +291,17 @@ struct NewCertificateSheet: View {
     }
 
     private func create() {
-        // TODO(Phase 2): 生成自签名证书 + 导出 .p12
-        dismiss()
+        let keySize = algorithm == "RSA 3072" ? 3072 : 2048  // ECC 暂 fallback 到 RSA 2048
+        let years: Int
+        switch validity {
+        case "1 年": years = 1
+        case "5 年": years = 5
+        default: years = 3
+        }
+        if vm.createSelfSigned(name: name, email: email, organization: organization,
+                               keySize: keySize, validityYears: years) {
+            dismiss()
+        }
     }
 }
 

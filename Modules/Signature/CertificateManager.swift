@@ -53,12 +53,17 @@ enum CertificateManager {
     }
 
     /// 新建自签名证书（返回签名身份）。
-    /// 注意：macOS 无干净公开 API 生成自签名证书（SecKeyCreateSelfSignedCertificate 已废弃），
-    /// 需手动构造 X.509 + 用 SecKeyCreateSignature 自签。此处先用占位实现。
+    /// 注意：当前仅支持 RSA（keySize 2048/3072）；ECC 暂未实现（可 fallback 到 RSA）。
     static func createSelfSigned(name: String, email: String, organization: String,
                                  keySize: Int, validityYears: Int) -> SigningCredential? {
-        // TODO(Phase 2): 生成 RSA/ECC 密钥对 + 手动构造并自签 X.509 证书
-        return nil
+        let rsaSize = (keySize == 3072) ? 3072 : 2048
+        guard let identity = SelfSignedCertificate.create(name: name, email: email,
+                                                          organization: organization,
+                                                          keySize: rsaSize,
+                                                          validityYears: validityYears) else {
+            return nil
+        }
+        return SigningCredential(identity: identity)
     }
 
     /// 验证 detached PKCS#7 签名。
