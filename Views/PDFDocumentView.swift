@@ -505,16 +505,43 @@ final class PDFPageCanvasView: NSView {
         let p = convert(event.locationInWindow, from: nil)
         let user = viewToUser(p, pageSize: pageSize)
         vm.updateAnnotationHover(pageIndex: pageIndex, userPoint: user)
-        if vm.hoveredAnnotation != nil {
+
+        if let annot = vm.hoveredAnnotation {
             NSCursor.pointingHand.set()
+            if annot.id != lastHoveredAnnotID {
+                showAnnotPopover(for: annot)
+                lastHoveredAnnotID = annot.id
+            }
         } else {
             NSCursor.arrow.set()
+            closeAnnotPopover()
+            lastHoveredAnnotID = nil
         }
     }
 
     override func mouseExited(with event: NSEvent) {
         viewModel?.hoveredAnnotationID = nil
+        closeAnnotPopover()
+        lastHoveredAnnotID = nil
         NSCursor.arrow.set()
+    }
+
+    private var annotPopover: NSPopover?
+    private var lastHoveredAnnotID: String?
+
+    private func showAnnotPopover(for item: AnnotationItem) {
+        closeAnnotPopover()
+        let pop = NSPopover()
+        pop.behavior = .transient
+        pop.contentViewController = NSHostingController(rootView: AnnotHoverPopover(item: item))
+        annotPopover = pop
+        let viewRect = userToView(item.rect, pageSize: pageSize)
+        pop.show(relativeTo: viewRect, of: self, preferredEdge: .maxY)
+    }
+
+    private func closeAnnotPopover() {
+        annotPopover?.close()
+        annotPopover = nil
     }
 
     private func route(_ phase: ToolPhase, _ event: NSEvent) {
@@ -593,5 +620,28 @@ final class PDFPageCanvasView: NSView {
 
     @objc private func exportSelected() {
         viewModel?.exportSelectedImage()
+    }
+}
+
+// MARK: - 悬停标注浮动气泡
+
+struct AnnotHoverPopover: View {
+    let item: AnnotationItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: item.typeIcon)
+                Text(item.typeName).font(.system(size: 13, weight: .semibold))
+            }
+            Text("颜色：\(item.color.displayName)")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+            Text(item.pageLabel)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        }
+        .padding(12)
+        .frame(minWidth: 140, alignment: .leading)
     }
 }
