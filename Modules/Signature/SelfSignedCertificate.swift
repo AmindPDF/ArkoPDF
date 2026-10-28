@@ -7,6 +7,7 @@
 
 import Foundation
 import Security
+import CryptoKit
 
 // MARK: - ASN.1 DER 编码器（精简）
 
@@ -114,11 +115,12 @@ enum SelfSignedCertificate {
     static func create(name: String, email: String, organization: String,
                        keySize: Int, validityYears: Int) -> SecIdentity? {
         // 1. 生成 RSA 私钥（持久化到默认 keychain）
+        let keyLabel = "ArkoPDF Self-Signed \(UUID().uuidString.prefix(8))"
         let keyAttrs: [String: Any] = [
             kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
             kSecAttrKeySizeInBits as String: keySize,
             kSecAttrIsPermanent as String: true,
-            kSecAttrLabel as String: "ArkoPDF Self-Signed \(UUID().uuidString.prefix(8))",
+            kSecAttrLabel as String: keyLabel,
         ]
         var error: Unmanaged<CFError>?
         guard let privateKey = SecKeyCreateRandomKey(keyAttrs as CFDictionary, &error) else {
@@ -139,11 +141,49 @@ enum SelfSignedCertificate {
             return nil
         }
 
-        // 3. 组装 SecIdentity（SecIdentityCreateWithCertificate 按公钥在 keychain 中匹配私钥）
+        // 3. 组装 SecIdentity（证书 + 私钥，含运行时兜底）
+        return Self.makeIdentity(cert: cert, publicKeyDER: pubData, keyLabel: keyLabel)
+    }
+
+    /// 组装 SecIdentity（证书 + 私钥）。
+    /// SecIdentityCreateWithCertificate 通过在 keychain 里按「证书公钥 SHA-1 == 私钥
+    /// kSecAttrApplicationLabel」匹配私钥；而 SecKeyCreateRandomKey 未必正确写入该标签，
+    /// 故先直接尝试，失败则补写标签（并把证书一并写入 keychain）后重试。
+    private static func makeIdentity(cert: SecCertificate, publicKeyDER: Data, keyLabel: String) -> SecIdentity? {
         var identity: SecIdentity?
-        let status = SecIdentityCreateWithCertificate(nil, cert, &identity)
-        guard status == errSecSuccess, let id = identity else { return nil }
-        return id
+        if SecIdentityCreateWithCertificate(nil, cert, &identity) == errSecSuccess, let id = identity {
+            return id
+        }
+
+        // 兜底 1：给私钥补 kSecAttrApplicationLabel（= 公钥 SHA-1）
+        let pubKeyHash = Self.sha1(publicKeyDER)
+        let keyQuery: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrLabel as String: keyLabel,
+        ]
+        let keyUpdate: [String: Any] = [
+            kSecAttrApplicationLabel as String: pubKeyHash,
+        ]
+        _ = SecItemUpdate(keyQuery as CFDictionary, keyUpdate as CFDictionary)
+
+        // 兜底 2：把证书也写入 keychain（带同一 application label，便于与私钥关联）
+        let certItem: [String: Any] = [
+            kSecClass as String: kSecClassCertificate,
+            kSecValueRef as String: cert,
+            kSecAttrApplicationLabel as String: pubKeyHash,
+        ]
+        _ = SecItemDelete(certItem as CFDictionary)   // 已存在则先删，避免重复
+        _ = SecItemAdd(certItem as CFDictionary, nil)
+
+        if SecIdentityCreateWithCertificate(nil, cert, &identity) == errSecSuccess, let id = identity {
+            return id
+        }
+        return nil
+    }
+
+    /// SHA-1（keychain 的 kSecAttrApplicationLabel 约定为公钥的 SHA-1）。
+    private static func sha1(_ data: Data) -> Data {
+        Data(Insecure.SHA1.hash(data: data))
     }
 
     /// 构造完整 X.509 v3 自签名证书 DER。
