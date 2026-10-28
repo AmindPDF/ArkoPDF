@@ -143,6 +143,8 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
 
     /// 当前「定位」的标注（标注面板点击后跳转并高亮描边）。
     @Published var focusedAnnotationID: String?
+    /// 当前鼠标悬停的标注（阅读模式命中捕获，用于光标变化 / tooltip）。
+    @Published var hoveredAnnotationID: String?
 
     /// 撤销/重做栈。
     let undoManager = ArkoUndoManager()
@@ -311,6 +313,27 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     func focusAnnotation(_ item: AnnotationItem) {
         currentPage = item.pageIndex
         focusedAnnotationID = item.id
+    }
+
+    /// 阅读模式：更新鼠标悬停的标注（命中则设 id，未命中清空）。
+    func updateAnnotationHover(pageIndex: Int, userPoint: CGPoint) {
+        guard let page = document?.page(at: pageIndex) else {
+            hoveredAnnotationID = nil
+            return
+        }
+        let idx = page.annotIndex(atPointX: userPoint.x, y: userPoint.y)
+        hoveredAnnotationID = idx >= 0 ? "\(pageIndex)-\(idx)" : nil
+    }
+
+    /// 按 id 取标注项。
+    func annotationItem(id: String) -> AnnotationItem? {
+        annotations.first { $0.id == id }
+    }
+
+    /// 当前悬停的标注项（tooltip / 光标用）。
+    var hoveredAnnotation: AnnotationItem? {
+        guard let id = hoveredAnnotationID else { return nil }
+        return annotationItem(id: id)
     }
 
     // MARK: - 图形 / 便签标注

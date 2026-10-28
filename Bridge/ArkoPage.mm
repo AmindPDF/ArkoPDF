@@ -545,6 +545,21 @@
     };
 }
 
+- (NSInteger)annotIndexAtPointX:(CGFloat)x y:(CGFloat)y {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots) {
+        return -1;
+    }
+    int n = annots->Count();
+    for (int i = n - 1; i >= 0; i--) {   // 从顶层往下命中
+        IPDF_Annot *annot = annots->GetAnnot(i);
+        if (annot && annot->IsPointInAnnot((float)x, (float)y)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 - (void)removeAnnotAtIndex:(NSInteger)index {
     IPDF_AnnotList *annots = [self sdkAnnotList];
     if (!annots || index < 0 || index >= annots->Count()) {

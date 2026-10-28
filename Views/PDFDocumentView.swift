@@ -492,6 +492,31 @@ final class PDFPageCanvasView: NSView {
     override func mouseDragged(with event: NSEvent) { route(.drag, event) }
     override func mouseUp(with event: NSEvent) { route(.up, event) }
 
+    // 阅读模式悬停捕获：追踪鼠标移动，命中标注则手型光标 + 记录 hover
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach { removeTrackingArea($0) }
+        let opts: NSTrackingArea.Options = [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect]
+        addTrackingArea(NSTrackingArea(rect: bounds, options: opts, owner: self, userInfo: nil))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        guard let vm = viewModel else { return }
+        let p = convert(event.locationInWindow, from: nil)
+        let user = viewToUser(p, pageSize: pageSize)
+        vm.updateAnnotationHover(pageIndex: pageIndex, userPoint: user)
+        if vm.hoveredAnnotation != nil {
+            NSCursor.pointingHand.set()
+        } else {
+            NSCursor.arrow.set()
+        }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        viewModel?.hoveredAnnotationID = nil
+        NSCursor.arrow.set()
+    }
+
     private func route(_ phase: ToolPhase, _ event: NSEvent) {
         guard let vm = viewModel else { return }
         let p = convert(event.locationInWindow, from: nil)
@@ -499,11 +524,22 @@ final class PDFPageCanvasView: NSView {
         vm.route(phase, pageIndex: pageIndex, userPoint: user, modifiers: event.modifierFlags, clickCount: event.clickCount)
     }
 
-    // 右键：命中图片/签名对象 → 选中并弹出上下文菜单
+    // 右键：先命中标注，再命中图片/签名对象 → 弹出对应上下文菜单
     override func rightMouseDown(with event: NSEvent) {
         guard let vm = viewModel else { return }
         let p = convert(event.locationInWindow, from: nil)
         let user = viewToUser(p, pageSize: pageSize)
+
+        // 1) 标注
+        let annotIdx = vm.document?.page(at: pageIndex)?.annotIndex(atPointX: user.x, y: user.y) ?? -1
+        if annotIdx >= 0, let item = vm.annotationItem(id: "\(pageIndex)-\(annotIdx)") {
+            currentContextAnnot = item
+            vm.focusAnnotation(item)
+            showAnnotContextMenu(event: event)
+            return
+        }
+
+        // 2) 图片/签名对象
         let idx = vm.document?.page(at: pageIndex)?.pageObjectIndex(atPointX: user.x, y: user.y) ?? -1
         guard idx >= 0 else { return }
         vm.selectImageObject(pageIndex: pageIndex, objectIndex: idx)
@@ -516,6 +552,39 @@ final class PDFPageCanvasView: NSView {
         exportItem.target = self
         menu.addItem(exportItem)
         NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    private var currentContextAnnot: AnnotationItem?
+
+    private func showAnnotContextMenu(event: NSEvent) {
+        guard let item = currentContextAnnot else { return }
+        let menu = NSMenu()
+        let deleteItem = NSMenuItem(title: "删除\(item.typeName)", action: #selector(deleteContextAnnot), keyEquivalent: "")
+        deleteItem.target = self
+        menu.addItem(deleteItem)
+
+        let colorItem = NSMenuItem(title: "颜色", action: nil, keyEquivalent: "")
+        let colorMenu = NSMenu()
+        for c in MarkupColor.allCases {
+            let mi = NSMenuItem(title: c.displayName, action: #selector(setContextAnnotColor(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.representedObject = c
+            colorMenu.addItem(mi)
+        }
+        colorItem.submenu = colorMenu
+        menu.addItem(colorItem)
+
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    @objc private func deleteContextAnnot() {
+        guard let item = currentContextAnnot else { return }
+        viewModel?.deleteAnnotation(item)
+    }
+
+    @objc private func setContextAnnotColor(_ sender: NSMenuItem) {
+        guard let item = currentContextAnnot, let c = sender.representedObject as? MarkupColor else { return }
+        viewModel?.changeAnnotationColor(item, to: c)
     }
 
     @objc private func deleteSelected() {

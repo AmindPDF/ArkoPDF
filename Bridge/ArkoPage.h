@@ -93,6 +93,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) NSInteger annotCount;
 /// 返回 @{@"type":@(ANNOT_TYPE), @"color":@(COLOR_MAKERGB), @"opacity":@(float), @"rect":NSValue(CGRect)}。
 - (nullable NSDictionary *)annotInfoAtIndex:(NSInteger)index;
+/// 命中测试：PDF 用户坐标点 → 标注下标（<0 表示无标注，从顶层往下精确命中 IsPointInAnnot）。
+- (NSInteger)annotIndexAtPointX:(CGFloat)x y:(CGFloat)y NS_SWIFT_NAME(annotIndex(atPointX:y:));
 - (void)removeAnnotAtIndex:(NSInteger)index;
 - (void)setAnnotColor:(unsigned int)color atIndex:(NSInteger)index;
 - (void)setAnnotOpacity:(float)opacity atIndex:(NSInteger)index;

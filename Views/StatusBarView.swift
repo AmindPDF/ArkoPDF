@@ -8,7 +8,14 @@ struct StatusBarView: View {
 
     var body: some View {
         HStack {
-            Text("就绪")
+            if let a = vm.hoveredAnnotation {
+                HStack(spacing: 4) {
+                    Image(systemName: a.typeIcon)
+                    Text("标注：\(a.typeName) · \(a.color.displayName)")
+                }
+            } else {
+                Text("就绪")
+            }
             Spacer()
             Text("\(Int(vm.zoom * 100))%")
                 .monospacedDigit()
