@@ -129,7 +129,7 @@ extension PDFEditorViewModel {
         compareResultPresented = false
     }
 
-    /// 导出对比报告。format：0=纯文本清单，1=合并版 PDF（暂未实现）。
+    /// 导出对比报告。format：0=纯文本清单，1=合并版 PDF（标记版）。
     func exportCompareReport(to url: URL, format: Int) {
         guard let old = document, let new = compareNewDocument else { return }
         if format == 0 {
@@ -137,7 +137,30 @@ extension PDFEditorViewModel {
             let text = CompareExportEngine.buildTextReport(old: old, new: new, diffs: compareDiffs, aiResult: ai)
             try? text.write(to: url, atomically: true, encoding: .utf8)
         } else {
-            lastError = "合并版 PDF 导出暂未实现"
+            exportMergedPDF(to: url)
+        }
+    }
+
+    /// 合并版 PDF（标记版）：以旧文档为底，删除红框、新增绿框，导出到 url。
+    private func exportMergedPDF(to url: URL) {
+        guard let old = document, let path = old.filePath else { return }
+        do {
+            let copy = try ArkoDocument(url: URL(fileURLWithPath: path))
+            defer { copy.close() }
+            let red = ArkoPage.makeRGBColor(withRed: 229, green: 72, blue: 77)
+            let green = ArkoPage.makeRGBColor(withRed: 48, green: 164, blue: 108)
+            for diff in compareDiffs {
+                guard let page = copy.page(at: diff.pageIndex) else { continue }
+                for rect in diff.deletedRects {
+                    _ = page.addMarkRect(at: rect, fillColor: red)
+                }
+                for rect in diff.addedRects {
+                    _ = page.addMarkRect(at: rect, fillColor: green)
+                }
+            }
+            try copy.save(to: url, progress: nil, isCancelled: nil, security: nil)
+        } catch {
+            lastError = error.localizedDescription
         }
     }
 }

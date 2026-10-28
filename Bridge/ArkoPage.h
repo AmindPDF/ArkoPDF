@@ -68,6 +68,10 @@ NS_ASSUME_NONNULL_BEGIN
                                     contents:(nullable NSString *)contents
     NS_SWIFT_NAME(addRedactionMark(at:fillColor:contents:));
 
+/// 对比标记：在矩形处添加带填充色的方形标注（导出合并版 PDF 用）。
+- (unsigned long long)addMarkRectAtRect:(CGRect)rect fillColor:(unsigned int)fillColor
+    NS_SWIFT_NAME(addMarkRect(at:fillColor:));
+
 /// 删除页面内容中完全落入指定矩形区域的对象（密文应用，调用 ArkoPDFCore 的 DeleteContentObjects）。
 - (NSInteger)deleteContentInRects:(NSArray<NSValue *> *)rects
     NS_SWIFT_NAME(deleteContent(inRects:));

@@ -9,8 +9,8 @@ struct AIConfig {
     var source: LLMSource = .builtin
     var provider = "DeepSeek"
     var apiKey = ""
-    /// 我方服务器对比接口（TODO：替换为正式地址）。
-    var builtinEndpoint = URL(string: "https://api.arkopdf.example.com/v1/compare")!
+    /// 我方服务器对比接口地址（可配置，TODO：替换为正式地址）。
+    var builtinEndpoint = "https://api.arkopdf.example.com/v1/compare"
 }
 
 // MARK: - 对齐段
@@ -101,6 +101,10 @@ private func decodeResponse(_ data: Data) -> AICompareResult? {
 struct BuiltinAIProvider: AIProvider {
     var name: String { "内置模型（我方服务器）" }
     let endpoint: URL
+
+    init(endpointString: String) {
+        endpoint = URL(string: endpointString) ?? URL(string: "https://api.arkopdf.example.com/v1/compare")!
+    }
 
     func analyze(segments: [AICompareSegment], completion: @escaping (Result<AICompareResult, Error>) -> Void) {
         let payload: [String: Any] = [
@@ -209,7 +213,7 @@ enum AIProviderFactory {
 
     static func make(config: AIConfig) -> AIProvider {
         if config.source == .builtin {
-            return BuiltinAIProvider(endpoint: config.builtinEndpoint)
+            return BuiltinAIProvider(endpointString: config.builtinEndpoint)
         }
         return CustomAIProvider(endpoint: endpoint(for: config.provider),
                                 apiKey: config.apiKey,

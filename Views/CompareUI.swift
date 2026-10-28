@@ -77,7 +77,12 @@ struct CompareSetupSheet: View {
                 }
                 .pickerStyle(.radioGroup).labelsHidden()
             }
-            if vm.compareAIConfig.source == .custom {
+            if vm.compareAIConfig.source == .builtin {
+                field("服务器地址") {
+                    TextField("https://…", text: $vm.compareAIConfig.builtinEndpoint)
+                        .textFieldStyle(.roundedBorder)
+                }
+            } else {
                 field("模型供应商") {
                     Picker("", selection: $vm.compareAIConfig.provider) {
                         ForEach(providers, id: \.self) { Text($0).tag($0) }
