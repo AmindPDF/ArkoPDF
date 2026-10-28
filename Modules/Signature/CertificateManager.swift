@@ -85,20 +85,24 @@ enum CertificateManager {
         }
         guard !pkcs7.isEmpty else { return false }
 
-        // 2. CMSDecoder 验证
+        // 2. CMSDecoder 验证 detached PKCS#7
         var decoder: CMSDecoder?
-        guard CMSDecoderCreate(&decoder) == noErr, let dec = decoder else { return false }
+        guard CMSDecoderCreate(&decoder) == errSecSuccess, let dec = decoder else { return false }
 
-        signedData.withUnsafeBytes { (buf: UnsafeRawBufferPointer) in
-            _ = CMSDecoderUpdateContent(dec, buf.baseAddress, buf.count)
-        }
+        // 3. 喂入 PKCS#7 签名结构（不含被签名内容）
         pkcs7.withUnsafeBytes { (buf: UnsafeRawBufferPointer) in
-            _ = CMSDecoderUpdateMessage(dec, buf.baseAddress, buf.count)
+            guard let base = buf.baseAddress else { return }
+            CMSDecoderUpdateMessage(dec, base, buf.count)
         }
+
+        // 4. 喂入被签名的内容（detached content）
+        CMSDecoderSetDetachedContent(dec, signedData as CFData)
+
         CMSDecoderFinalizeMessage(dec)
 
-        var status: CMSSignerStatus = kCMSSignerUnsigned
-        CMSDecoderCopySignerStatus(dec, 0, &status)
-        return status == kCMSSignerValid
+        // 5. 签名者状态
+        var status: CMSSignerStatus = .unsigned
+        CMSDecoderCopySignerStatus(dec, 0, nil, false, &status, nil, nil)
+        return status == .valid
     }
 }

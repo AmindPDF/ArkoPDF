@@ -139,8 +139,11 @@ enum SelfSignedCertificate {
             return nil
         }
 
-        // 3. 组装 SecIdentity（证书 + 私钥）
-        return SecIdentityCreateWithCertificate(nil, cert, [privateKey] as CFArray)
+        // 3. 组装 SecIdentity（SecIdentityCreateWithCertificate 按公钥在 keychain 中匹配私钥）
+        var identity: SecIdentity?
+        let status = SecIdentityCreateWithCertificate(nil, cert, &identity)
+        guard status == errSecSuccess, let id = identity else { return nil }
+        return id
     }
 
     /// 构造完整 X.509 v3 自签名证书 DER。

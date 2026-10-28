@@ -2,6 +2,7 @@
 //  数字签名：加载身份 / 导入 .p12 / 签名。
 
 import Foundation
+import AppKit
 
 extension PDFEditorViewModel {
 
@@ -99,7 +100,7 @@ extension PDFEditorViewModel {
             logoPath = path
         }
 
-        let mdp = lockDocument ? 1 : 0
+        let mdp: Int32 = lockDocument ? 1 : 0
         do {
             return try ArkoDigitalSign().sign(document: doc, pageIndex: pageIndex, rect: rect,
                                               identity: credential.identity,
