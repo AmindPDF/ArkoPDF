@@ -357,12 +357,12 @@ struct CompressSheet: View {
             o.colorCompression = .retain
             o.monoCompression = .retain
         } else {
-            o.colorCompression = .jpeg
-            o.monoCompression = .ccitt4
+            o.colorCompression = ArkoColorCompression(rawValue: 1) ?? .retain   // JPEG
+            o.monoCompression = ArkoMonoCompression(rawValue: 3) ?? .retain     // CCITT4
         }
-        o.quality = Int(quality)
-        o.downsampleDPI = dpi
-        o.downsampleAbove = dpi          // 仅当有效 DPI 高于目标时才降采样
+        o.quality = Int32(quality)
+        o.downsampleDPI = Int32(dpi)
+        o.downsampleAbove = Int32(dpi)    // 仅当有效 DPI 高于目标时才降采样
         o.mustReduceSize = true
         o.flateStreams = flateStreams
         o.lzwToFlate = lzwToFlate
