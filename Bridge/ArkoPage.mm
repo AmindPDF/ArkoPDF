@@ -392,6 +392,34 @@
     }
 }
 
+- (void)addRectAnnotOfType:(NSInteger)annotType
+                    inRect:(CGRect)rect
+                     color:(unsigned int)color
+                   opacity:(float)opacity
+                  contents:(NSString *)contents {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots) {
+        return;
+    }
+    IPDF_Annot *annot = annots->AddAnnot((int)annotType);
+    if (!annot) {
+        return;
+    }
+    annot->SetFlags(ANNOT_FLAG_PRINT);
+    annot->SetColor(color);
+    annot->SetOpacity(opacity);
+    PDSDK_FloatRect r;
+    r.left = (float)CGRectGetMinX(rect);
+    r.bottom = (float)CGRectGetMinY(rect);
+    r.right = (float)CGRectGetMaxX(rect);
+    r.top = (float)CGRectGetMaxY(rect);
+    annot->SetRect(&r);
+    if (contents.length > 0) {
+        annot->SetContents([contents UTF8String], 0);
+    }
+    annot->GenerateAppearance();
+}
+
 - (unsigned long long)addRedactionMarkAtRect:(CGRect)rect
                                    fillColor:(unsigned int)fillColor
                                     contents:(nullable NSString *)contents {
@@ -663,6 +691,23 @@
         annot->GetCalloutPoint(x, y);
     }
     return CGPointMake(x, y);
+}
+
+- (void)setFreeTextContent:(NSString *)content
+                fontHandle:(unsigned long long)fontHandle
+                  fontSize:(float)fontSize
+                     color:(unsigned int)color
+                   atIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    if (!annot || fontHandle == 0) {
+        return;
+    }
+    IPDF_Font *font = (IPDF_Font *)(uintptr_t)fontHandle;
+    annot->SetFreeTextContent_UTF8([content UTF8String], font, fontSize, color);
 }
 
 - (unsigned long long)annotHandlerAtIndex:(NSInteger)index {

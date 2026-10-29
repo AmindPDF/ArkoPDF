@@ -22,8 +22,27 @@ final class AnnotateModule: EditorModule {
         let ink = InkTool()
         let note = NoteTool()
 
+        // 测量
+        let distance = MeasureDragTool(handler: DistanceMeasureHandler(), id: "tool.measure.distance", displayName: "距离", icon: "ruler")
+        let perimeter = MeasurePolygonTool(handler: PerimeterMeasureHandler(), draftType: .polyline, id: "tool.measure.perimeter", displayName: "周长", icon: "point.topleft.down.curvedto.point.bottomright.up")
+        let area = MeasurePolygonTool(handler: AreaMeasureHandler(), draftType: .polygon, id: "tool.measure.area", displayName: "面积", icon: "square.dashed")
+
+        // FreeText 变体
+        let textbox = RectAnnotTool(handler: TextboxHandler(), id: "tool.freetext.textbox", displayName: "文本框", icon: "textbox")
+        let typewriter = RectAnnotTool(handler: TypeWriterHandler(), id: "tool.freetext.typewriter", displayName: "打字机", icon: "keyboard")
+        let callout = CalloutTool(handler: CalloutHandler())
+
+        // 图标类
+        let stamp = RectAnnotTool(handler: StampHandler(), id: "tool.annot.stamp", displayName: "图章", icon: "checkmark.seal")
+        let attachment = RectAnnotTool(handler: AttachmentHandler(), id: "tool.annot.attachment", displayName: "附件", icon: "paperclip")
+        let sound = RectAnnotTool(handler: SoundHandler(), id: "tool.annot.sound", displayName: "音频", icon: "speaker.wave.2")
+        let movie = RectAnnotTool(handler: MovieHandler(), id: "tool.annot.movie", displayName: "视频", icon: "film")
+
         tools = [highlight, underline, squiggly, strikeout,
-                 line, square, circle, polygon, polyline, ink, note]
+                 line, square, circle, polygon, polyline, ink, note,
+                 distance, perimeter, area,
+                 textbox, typewriter, callout,
+                 stamp, attachment, sound, movie]
         activeTool = highlight
     }
 }

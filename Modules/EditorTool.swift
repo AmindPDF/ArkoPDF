@@ -48,6 +48,9 @@ protocol ToolContext: AnyObject {
     func addShapeAnnot(_ type: ShapeType, points: [CGPoint], pageIndex: Int)
     func addNoteAnnot(at point: CGPoint, pageIndex: Int)
     func setDraft(_ draft: DraftShape?)
+    // 测量 / FreeText 变体 / 图章 / 附件 / 音视频（经 GraphicAnnotHandler）
+    func addGraphicShapeAnnot(_ handler: GraphicAnnotHandler, points: [CGPoint], pageIndex: Int)
+    func addGraphicRectAnnot(_ handler: GraphicAnnotHandler, rect: CGRect, target: CGPoint?, pageIndex: Int)
 
     // 页面组织操作（PPO）
     func insertBlankPage(after index: Int)

@@ -80,12 +80,17 @@ struct AnnotEvent {
     let annotType: Int  // ANNOT_TYPE 原始值
 }
 
-/// 由 ANNOT_TYPE 原始值取显示名/图标（覆盖文本标记、图形、便签等所有类型）。
+/// 由 ANNOT_TYPE 原始值取显示名/图标（覆盖文本标记、图形、便签、FreeText/图标等所有类型）。
 enum AnnotKind {
     static func name(forType t: Int) -> String {
         if let m = MarkupType(rawValue: t) { return m.displayName }
         if let s = ShapeType(rawValue: t) { return s.displayName }
         if t == 1 { return "便签" }  // ANNOT_TYPE_TEXT
+        if t == 3 { return "文本" }  // ANNOT_TYPE_FREETEXT
+        if t == 15 { return "图章" } // ANNOT_TYPE_STAMP
+        if t == 17 { return "附件" } // ANNOT_TYPE_FILEATTACHMENT
+        if t == 18 { return "音频" } // ANNOT_TYPE_SOUND
+        if t == 19 { return "视频" } // ANNOT_TYPE_MOVIE
         return "标注"
     }
 
@@ -93,6 +98,11 @@ enum AnnotKind {
         if let m = MarkupType(rawValue: t) { return m.icon }
         if let s = ShapeType(rawValue: t) { return s.icon }
         if t == 1 { return "note.text" }
+        if t == 3 { return "textbox" }
+        if t == 15 { return "checkmark.seal" }
+        if t == 17 { return "paperclip" }
+        if t == 18 { return "speaker.wave.2" }
+        if t == 19 { return "film" }
         return "square.dashed"
     }
 }
@@ -192,4 +202,138 @@ final class SquigglyAnnotHandler: AnnotHandler {
                            color: color,
                            opacity: opacity)
     }
+}
+
+// MARK: - 图形/矩形类标注处理器（测量 / FreeText 变体 / 图章 / 附件 / 音视频）
+
+/// ANNOT_TYPE 常量（对应 SDK ipdf_annots.h）。
+enum GraphicAnnotType: Int {
+    case freeText = 3
+    case stamp = 15
+    case fileAttachment = 17
+    case sound = 18
+    case movie = 19
+}
+
+/// 非文本标记的标注处理器。形状类（测量）用 apply(points:)，矩形类（FreeText/图标）用 apply(rect:)。
+protocol GraphicAnnotHandler: AnyObject {
+    var id: String { get }
+    var displayName: String { get }
+    var annotType: Int { get }       // ANNOT_TYPE_*
+    var measureType: Int { get }     // 0=非测量 1=距离 2=周长 3=面积
+    var freeTextType: Int { get }    // 0=Textbox 1=Typewriter 2=Callout
+
+    /// 形状类落标注：points 为顶点（测量 line/polygon/polyline）。
+    func apply(points: [CGPoint], on page: ArkoPage, color: UInt32, opacity: Float, borderWidth: Int)
+    /// 矩形类落标注：rect 为放置矩形（FreeText/图章/附件/音视频）；target 为 Callout 引出线目标点（其余类型忽略）。
+    func apply(rect: CGRect, target: CGPoint?, on page: ArkoPage, color: UInt32, opacity: Float)
+}
+
+extension GraphicAnnotHandler {
+    func apply(points: [CGPoint], on page: ArkoPage, color: UInt32, opacity: Float, borderWidth: Int) {}
+    func apply(rect: CGRect, target: CGPoint?, on page: ArkoPage, color: UInt32, opacity: Float) {}
+}
+
+/// 测量处理器基类：创建图形标注后写入 /IT。
+class MeasureAnnotHandler: GraphicAnnotHandler {
+    let id: String
+    let displayName: String
+    let annotType: Int
+    let measureType: Int
+    let freeTextType = 0
+
+    init(id: String, displayName: String, annotType: Int, measureType: Int) {
+        self.id = id
+        self.displayName = displayName
+        self.annotType = annotType
+        self.measureType = measureType
+    }
+
+    func apply(points: [CGPoint], on page: ArkoPage, color: UInt32, opacity: Float, borderWidth: Int) {
+        page.addShapeAnnot(ofType: annotType,
+                           points: points.map { NSValue(point: $0) },
+                           color: color,
+                           opacity: opacity,
+                           borderWidth: borderWidth)
+        page.setMeasureType(Int32(measureType), atIndex: page.annotCount - 1)
+    }
+}
+
+final class DistanceMeasureHandler: MeasureAnnotHandler {
+    init() { super.init(id: "annot.measure.distance", displayName: "距离", annotType: ShapeType.line.rawValue, measureType: 1) }
+}
+final class PerimeterMeasureHandler: MeasureAnnotHandler {
+    init() { super.init(id: "annot.measure.perimeter", displayName: "周长", annotType: ShapeType.polyline.rawValue, measureType: 2) }
+}
+final class AreaMeasureHandler: MeasureAnnotHandler {
+    init() { super.init(id: "annot.measure.area", displayName: "面积", annotType: ShapeType.polygon.rawValue, measureType: 3) }
+}
+
+/// FreeText 处理器：创建 FreeText 矩形后写入 /IT 变体。
+class FreeTextAnnotHandler: GraphicAnnotHandler {
+    let id: String
+    let displayName: String
+    let annotType = GraphicAnnotType.freeText.rawValue
+    let measureType = 0
+    let freeTextType: Int
+
+    init(id: String, displayName: String, freeTextType: Int) {
+        self.id = id
+        self.displayName = displayName
+        self.freeTextType = freeTextType
+    }
+
+    func apply(rect: CGRect, target: CGPoint?, on page: ArkoPage, color: UInt32, opacity: Float) {
+        page.addRectAnnot(ofType: annotType, inRect: rect, color: color, opacity: opacity, contents: "")
+        page.setFreeTextType(Int32(freeTextType), atIndex: page.annotCount - 1)
+    }
+}
+
+final class TextboxHandler: FreeTextAnnotHandler {
+    init() { super.init(id: "annot.freetext.textbox", displayName: "文本框", freeTextType: 0) }
+}
+final class TypeWriterHandler: FreeTextAnnotHandler {
+    init() { super.init(id: "annot.freetext.typewriter", displayName: "打字机", freeTextType: 1) }
+}
+final class CalloutHandler: FreeTextAnnotHandler {
+    init() { super.init(id: "annot.freetext.callout", displayName: "标注框", freeTextType: 2) }
+
+    override func apply(rect: CGRect, target: CGPoint?, on page: ArkoPage, color: UInt32, opacity: Float) {
+        super.apply(rect: rect, target: target, on: page, color: color, opacity: opacity)
+        // 引出线目标点：优先用传入的 target，否则默认在文本框下方 24pt 处。
+        let t = target ?? CGPoint(x: rect.midX, y: rect.minY - 24)
+        page.setCalloutPointX(t.x, y: t.y, atIndex: page.annotCount - 1)
+    }
+}
+
+/// 图标类处理器（图章/附件/音视频）：矩形内画图标。
+class IconAnnotHandler: GraphicAnnotHandler {
+    let id: String
+    let displayName: String
+    let annotType: Int
+    let measureType = 0
+    let freeTextType = 0
+
+    init(id: String, displayName: String, annotType: Int) {
+        self.id = id
+        self.displayName = displayName
+        self.annotType = annotType
+    }
+
+    func apply(rect: CGRect, target: CGPoint?, on page: ArkoPage, color: UInt32, opacity: Float) {
+        page.addRectAnnot(ofType: annotType, inRect: rect, color: color, opacity: opacity, contents: "")
+    }
+}
+
+final class StampHandler: IconAnnotHandler {
+    init() { super.init(id: "annot.stamp", displayName: "图章", annotType: GraphicAnnotType.stamp.rawValue) }
+}
+final class AttachmentHandler: IconAnnotHandler {
+    init() { super.init(id: "annot.attachment", displayName: "附件", annotType: GraphicAnnotType.fileAttachment.rawValue) }
+}
+final class SoundHandler: IconAnnotHandler {
+    init() { super.init(id: "annot.sound", displayName: "音频", annotType: GraphicAnnotType.sound.rawValue) }
+}
+final class MovieHandler: IconAnnotHandler {
+    init() { super.init(id: "annot.movie", displayName: "视频", annotType: GraphicAnnotType.movie.rawValue) }
 }

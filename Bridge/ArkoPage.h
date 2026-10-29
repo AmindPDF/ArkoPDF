@@ -62,6 +62,14 @@ NS_ASSUME_NONNULL_BEGIN
                      color:(unsigned int)color
                    opacity:(float)opacity;
 
+// 矩形类标注（FreeText / Stamp / FileAttachment / Sound / Movie）：AddAnnot + SetRect + GenerateAppearance。
+- (void)addRectAnnotOfType:(NSInteger)annotType
+                    inRect:(CGRect)rect
+                     color:(unsigned int)color
+                   opacity:(float)opacity
+                  contents:(nullable NSString *)contents
+    NS_SWIFT_NAME(addRectAnnot(ofType:inRect:color:opacity:contents:));
+
 // 密文标记（ANNOT_TYPE_SQUARE + 填充色）：rect 为 PDF 用户坐标，contents 为叠加文字（可 nil）。
 - (unsigned long long)addRedactionMarkAtRect:(CGRect)rect
                                    fillColor:(unsigned int)fillColor
@@ -108,6 +116,13 @@ NS_ASSUME_NONNULL_BEGIN
 // Callout 引出线目标点（页面坐标）
 - (void)setCalloutPointX:(CGFloat)x y:(CGFloat)y atIndex:(NSInteger)index;
 - (CGPoint)calloutPointAtIndex:(NSInteger)index;
+// FreeText 文字内容（重渲染外观）
+- (void)setFreeTextContent:(NSString *)content
+                fontHandle:(unsigned long long)fontHandle
+                  fontSize:(float)fontSize
+                     color:(unsigned int)color
+                   atIndex:(NSInteger)index
+    NS_SWIFT_NAME(setFreeTextContent(_:fontHandle:fontSize:color:atIndex:));
 
 // 标注句柄（撤销/重做用：void* 以 64 位整数传递，删除后可 AddAnnotByHandler 重插入）
 - (unsigned long long)annotHandlerAtIndex:(NSInteger)index;

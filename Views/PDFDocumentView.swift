@@ -73,6 +73,9 @@ struct PDFDocumentView: View {
         .sheet(isPresented: $vm.isCompressPresented) {
             CompressSheet()
         }
+        .sheet(item: $vm.freeTextInputDraft) { draft in
+            FreeTextInputSheet(draft: draft)
+        }
         .onDeleteCommand {
             vm.deleteSelectedImage()
         }

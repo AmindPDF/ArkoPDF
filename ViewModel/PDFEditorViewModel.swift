@@ -138,6 +138,8 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var signatureAppearance = SignatureAppearance()
     /// 压缩（优化）对话框。
     @Published var isCompressPresented = false
+    /// FreeText 文字输入（放置文本框后弹出）。
+    @Published var freeTextInputDraft: FreeTextInputDraft?
 
     /// 保存进度状态（SaveProgressOverlay 用）。
     @Published var isSaving = false
@@ -392,6 +394,67 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
 
         annotEvents.send(AnnotEvent(kind: .added, pageIndex: pageIndex, annotType: 1))  // ANNOT_TYPE_TEXT
         refreshAnnotations()
+        invalidateAllPages()
+    }
+
+    /// 测量标注（形状类 + /IT）：经 handler 落标注。
+    func addGraphicShapeAnnot(_ handler: GraphicAnnotHandler, points: [CGPoint], pageIndex: Int) {
+        guard let page = document?.page(at: pageIndex) else { return }
+        handler.apply(points: points, on: page, color: markupColor.sdkColor, opacity: markupOpacity, borderWidth: 2)
+        let annotIndex = page.annotCount - 1
+        let annotHandler = page.annotHandler(at: annotIndex)
+
+        undoManager.register(UndoItem(
+            description: "添加\(handler.displayName)",
+            undo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.removeAnnot(byHandler: annotHandler) }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.addAnnot(byHandler: annotHandler, at: annotIndex) }
+            }
+        ))
+
+        annotEvents.send(AnnotEvent(kind: .added, pageIndex: pageIndex, annotType: handler.annotType))
+        refreshAnnotations()
+        invalidateAllPages()
+    }
+
+    /// FreeText 变体 / 图章 / 附件 / 音视频（矩形类）：经 handler 落标注。
+    func addGraphicRectAnnot(_ handler: GraphicAnnotHandler, rect: CGRect, target: CGPoint?, pageIndex: Int) {
+        guard let page = document?.page(at: pageIndex) else { return }
+        handler.apply(rect: rect, target: target, on: page, color: markupColor.sdkColor, opacity: markupOpacity)
+        let annotIndex = page.annotCount - 1
+        let annotHandler = page.annotHandler(at: annotIndex)
+
+        undoManager.register(UndoItem(
+            description: "添加\(handler.displayName)",
+            undo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.removeAnnot(byHandler: annotHandler) }
+            },
+            redo: { ctx in
+                ctx.performUndoRedo { ctx.document?.page(at: pageIndex)?.addAnnot(byHandler: annotHandler, at: annotIndex) }
+            }
+        ))
+
+        annotEvents.send(AnnotEvent(kind: .added, pageIndex: pageIndex, annotType: handler.annotType))
+        refreshAnnotations()
+        invalidateAllPages()
+
+        // FreeText 变体：放置后弹出文字输入
+        if handler is FreeTextAnnotHandler {
+            freeTextInputDraft = FreeTextInputDraft(pageIndex: pageIndex, annotIndex: annotIndex)
+        }
+    }
+
+    /// 提交 FreeText 文字内容并重渲染。
+    func commitFreeText(_ text: String, draft: FreeTextInputDraft) {
+        guard let page = document?.page(at: draft.pageIndex), !text.isEmpty else { return }
+        let fontHandle = document?.defaultFontHandle ?? 0
+        page.setFreeTextContent(text,
+                                fontHandle: fontHandle,
+                                fontSize: 12,
+                                color: markupColor.sdkColor,
+                                atIndex: draft.annotIndex)
         invalidateAllPages()
     }
 
