@@ -787,6 +787,12 @@ public:
 	virtual int GetCalloutPoint(float& x, float& y) = 0;
 
 	/**
+	 * @brief 设置 FreeText 标注的文字内容（重渲染外观）。
+	 * 内部从标注 Rect 推算文字左上角；font 为文档默认字体，font_size 为字号（pt）。
+	 */
+	virtual void SetFreeTextContent_UTF8(const char* content, IPDF_Font* font, float font_size, unsigned int color) = 0;
+
+	/**
 	 * @brief Get parent annotation.
 	 *
 	 * @return The parent annotation.
