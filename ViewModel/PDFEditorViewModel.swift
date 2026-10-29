@@ -136,12 +136,16 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
     @Published var compareProgress: Double = 0
     @Published var compareProgressText = "正在准备…"
     @Published var signatureAppearance = SignatureAppearance()
+    /// 压缩（优化）对话框。
+    @Published var isCompressPresented = false
 
     /// 保存进度状态（SaveProgressOverlay 用）。
     @Published var isSaving = false
     @Published var saveProgress: Double = 0
     @Published var saveTitle: String = "保存…"
     private let saveCancelFlag = SaveCancelFlag()
+    /// 压缩取消标志（压缩线程读、主线程写）。
+    let compressCancelFlag = SaveCancelFlag()
 
     /// 当前「定位」的标注（标注面板点击后跳转并高亮描边）。
     @Published var focusedAnnotationID: String?
@@ -582,6 +586,10 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
 
     func showPhotoBook() {
         isPhotoBookPresented = true
+    }
+
+    func showCompress() {
+        isCompressPresented = true
     }
 
     // MARK: - 密码 / 安全

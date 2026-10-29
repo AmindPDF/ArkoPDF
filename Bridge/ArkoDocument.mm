@@ -9,6 +9,7 @@
 #include "ipdf_page.h"
 #include "ipdf_pageprocess.h"
 #include "ipdf_bookmark.h"
+#include "ipdf_optimizer.h"
 #include "ArkoSaveProgress.h"
 
 @interface ArkoDocument ()
@@ -17,6 +18,9 @@
 @end
 
 @implementation ArkoSecurityOptions
+@end
+
+@implementation ArkoCompressOptions
 @end
 
 static NSString * _Nullable ArkoUTF8(const char *s) {
@@ -669,6 +673,124 @@ static int *ArkoIntArrayFromPages(NSArray<NSNumber *> *pages) {
         PDSDK_ReleaseDocument(_doc);
         _doc = NULL;
     }
+}
+
+// ============ 压缩（优化）============
+
+static NSError * _Nullable ArkoCompressError(int ret) {
+    NSString *desc = (ret == -1) ? @"已取消" : (ret == 2 ? @"该优化项暂不支持" : @"压缩失败");
+    return [NSError errorWithDomain:@"ArkoPDF.SDK" code:ret
+                           userInfo:@{NSLocalizedDescriptionKey: desc}];
+}
+
+static void _FillCompressOptions(PDSDK_OptimizeOptions *out, ArkoCompressOptions *o) {
+    memset(out, 0, sizeof(*out));
+    out->image.compressionType = (int)o.colorCompression;
+    out->image.monoCompressionType = (int)o.monoCompression;
+    out->image.quality = o.quality;
+    out->image.downsampleDPI = o.downsampleDPI;
+    out->image.downsampleAbove = o.downsampleAbove;
+    out->image.bMustReduceSize = o.mustReduceSize;
+    out->bFlateStreams = o.flateStreams;
+    out->bLZWToFlate = o.lzwToFlate;
+    out->bRemoveInvalidObjs = o.removeInvalidObjects;
+    out->bUnembedFonts = o.unembedFonts;
+    out->bDiscardJavaScript = o.discardJavaScript;
+    out->bDiscardPageThumbnails = o.discardPageThumbnails;
+    out->bDiscardPrintSettings = o.discardPrintSettings;
+    out->bDiscardBookmarks = o.discardBookmarks;
+    out->bDiscardFileAttachments = o.discardFileAttachments;
+    out->bDiscardPrivateData = o.discardPrivateData;
+    out->bDiscardMetadata = o.discardMetadata;
+    out->bDiscardFormFields = o.discardFormFields;
+    out->bDiscardExternalCrossRefs = o.discardExternalCrossRefs;
+    out->bFlattenFormFields = o.flattenFormFields;
+    out->bFlattenAnnotations = o.flattenAnnotations;
+    out->bRemoveInvalidBookmarks = o.removeInvalidBookmarks;
+    out->bRemoveInvalidLinks = o.removeInvalidLinks;
+    out->bRemoveUnreferencedNamedDests = o.removeUnreferencedNamedDests;
+}
+
+static NSDictionary * _AuditDict(const PDSDK_OptimizeAudit *a) {
+    return @{
+        @"image":     @(a->imageSaving),
+        @"stream":    @(a->streamSaving),
+        @"invalidObj": @(a->invalidObjSaving),
+        @"font":      @(a->fontSaving),
+        @"discard":   @(a->discardSaving),
+        @"flatten":   @(a->flattenSaving),
+        @"total":     @(a->totalSaving),
+    };
+}
+
+static int _CompressOnProgress(void *pUserData, int percent, int *pCancel) {
+    ArkoProgressSink *sink = (__bridge ArkoProgressSink *)pUserData;
+    if (!sink) return 0;
+    if (sink.onProgress) sink.onProgress(percent / 100.0f);
+    if (sink.onCancel && sink.onCancel()) {
+        if (pCancel) *pCancel = 1;
+        return 1;  // 请求取消
+    }
+    return 0;
+}
+
+- (NSDictionary *)auditCompress:(ArkoCompressOptions *)options error:(NSError **)error {
+    if (!_doc) {
+        if (error) *error = [NSError errorWithDomain:@"ArkoPDF.SDK" code:-1
+                                            userInfo:@{NSLocalizedDescriptionKey: @"文档未打开"}];
+        return nil;
+    }
+    IPDF_Optimizer *opt = PDSDK_NewOptimizer();
+    if (!opt) {
+        if (error) *error = [NSError errorWithDomain:@"ArkoPDF.SDK" code:-2
+                                            userInfo:@{NSLocalizedDescriptionKey: @"无法创建优化器"}];
+        return nil;
+    }
+    PDSDK_OptimizeOptions o;
+    _FillCompressOptions(&o, options);
+    PDSDK_OptimizeAudit audit;
+    int ret = opt->Audit(_doc, &o, &audit, NULL);
+    opt->Release();
+    if (ret != 0) {
+        if (error) *error = ArkoCompressError(ret);
+        return nil;
+    }
+    return _AuditDict(&audit);
+}
+
+- (NSDictionary *)optimizeCompress:(ArkoCompressOptions *)options
+                           progress:(void (^)(float))progress
+                         isCancelled:(BOOL (^)(void))isCancelled
+                              error:(NSError **)error {
+    if (!_doc) {
+        if (error) *error = [NSError errorWithDomain:@"ArkoPDF.SDK" code:-1
+                                            userInfo:@{NSLocalizedDescriptionKey: @"文档未打开"}];
+        return nil;
+    }
+    IPDF_Optimizer *opt = PDSDK_NewOptimizer();
+    if (!opt) {
+        if (error) *error = [NSError errorWithDomain:@"ArkoPDF.SDK" code:-2
+                                            userInfo:@{NSLocalizedDescriptionKey: @"无法创建优化器"}];
+        return nil;
+    }
+    PDSDK_OptimizeOptions o;
+    _FillCompressOptions(&o, options);
+    PDSDK_OptimizeAudit audit;
+
+    ArkoProgressSink *sink = [[ArkoProgressSink alloc] init];
+    sink.onProgress = progress;
+    sink.onCancel = isCancelled;
+    PDSDK_OptimizeProgress prog;
+    prog.pUserData = (__bridge void *)sink;
+    prog.OnProgress = _CompressOnProgress;
+
+    int ret = opt->Optimize(_doc, &o, &audit, &prog);
+    opt->Release();
+    if (ret != 0) {
+        if (error) *error = ArkoCompressError(ret);
+        return nil;
+    }
+    return _AuditDict(&audit);
 }
 
 - (void)dealloc {

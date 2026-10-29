@@ -10,7 +10,9 @@ final class ToolsModule: EditorModule {
     var activeTool: EditorTool?
 
     init() {
-        let compress = StubTool(id: "tool.compress", displayName: "压缩", icon: "arrow.down.circle")
+        let compress = ActionTool(id: "tool.compress", displayName: "压缩", icon: "arrow.down.circle") { context in
+            context.showCompress()
+        }
         let print = StubTool(id: "tool.print", displayName: "打印", icon: "printer")
         let ocr = StubTool(id: "tool.ocr", displayName: "OCR", icon: "text.viewfinder")
         let sign = StubTool(id: "tool.signature", displayName: "手写签名", icon: "signature")

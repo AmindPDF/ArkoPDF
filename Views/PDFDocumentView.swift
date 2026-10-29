@@ -70,6 +70,9 @@ struct PDFDocumentView: View {
         .sheet(isPresented: $vm.compareResultPresented) {
             CompareResultView()
         }
+        .sheet(isPresented: $vm.isCompressPresented) {
+            CompressSheet()
+        }
         .onDeleteCommand {
             vm.deleteSelectedImage()
         }

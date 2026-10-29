@@ -27,7 +27,6 @@ jobs:
             -destination 'generic/platform=macOS' \
             -derivedDataPath ./build \
             CODE_SIGNING_ALLOWED=NO \
-            -quiet \
             build
 
       - name: Build & run smoke test
@@ -38,7 +37,6 @@ jobs:
             -destination 'generic/platform=macOS' \
             -derivedDataPath ./build \
             CODE_SIGNING_ALLOWED=NO \
-            -quiet \
             build
           ./build/Build/Products/Release/smoke
 

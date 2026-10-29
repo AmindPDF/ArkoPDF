@@ -39,6 +39,51 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
 @property (nonatomic) BOOL removeSecurity;
 @end
 
+/// 图片压缩目标（彩色/灰度）。
+typedef NS_ENUM(NSInteger, ArkoColorCompression) {
+    ArkoColorCompressionRetain = 0,   // 不重压缩
+    ArkoColorCompressionJPEG   = 1,   // JPEG（质量可调）
+};
+/// 图片压缩目标（单色 1bit）。
+typedef NS_ENUM(NSInteger, ArkoMonoCompression) {
+    ArkoMonoCompressionRetain = 0,
+    ArkoMonoCompressionCCITT3 = 2,
+    ArkoMonoCompressionCCITT4 = 3,
+};
+
+/// 压缩（优化）参数。
+@interface ArkoCompressOptions : NSObject
+// 图片
+@property (nonatomic) ArkoColorCompression colorCompression;
+@property (nonatomic) ArkoMonoCompression monoCompression;
+@property (nonatomic) int quality;              // JPEG 质量 0-100
+@property (nonatomic) int downsampleDPI;        // 0 = 不降采样
+@property (nonatomic) int downsampleAbove;      // 有效 DPI 高于此值才降采样（0 = 全部降）
+@property (nonatomic) BOOL mustReduceSize;      // 仅当重压缩后更小才替换
+// 通用优化
+@property (nonatomic) BOOL flateStreams;        // 无过滤流 → Flate
+@property (nonatomic) BOOL lzwToFlate;          // LZW → Flate
+@property (nonatomic) BOOL removeInvalidObjects;
+@property (nonatomic) BOOL unembedFonts;        // 非符号字体取消嵌入
+// 丢弃对象
+@property (nonatomic) BOOL discardJavaScript;
+@property (nonatomic) BOOL discardPageThumbnails;
+@property (nonatomic) BOOL discardPrintSettings;
+@property (nonatomic) BOOL discardBookmarks;
+@property (nonatomic) BOOL discardFileAttachments;
+@property (nonatomic) BOOL discardPrivateData;
+@property (nonatomic) BOOL discardMetadata;
+@property (nonatomic) BOOL discardFormFields;
+@property (nonatomic) BOOL discardExternalCrossRefs;
+// 扁平化
+@property (nonatomic) BOOL flattenFormFields;
+@property (nonatomic) BOOL flattenAnnotations;
+// 清理
+@property (nonatomic) BOOL removeInvalidBookmarks;
+@property (nonatomic) BOOL removeInvalidLinks;
+@property (nonatomic) BOOL removeUnreferencedNamedDests;
+@end
+
 @interface ArkoDocument : NSObject
 
 @property (nonatomic, weak, nullable) id<ArkoDocumentPPODelegate> ppoDelegate;
@@ -56,6 +101,17 @@ typedef NS_ENUM(NSInteger, ArkoPPOOperation) {
           security:(nullable ArkoSecurityOptions *)security
              error:(NSError **)error NS_SWIFT_NAME(save(to:progress:isCancelled:security:));
 - (void)close;
+
+// 压缩（优化）
+/// 审计：估算可省空间（不修改文档）。返回 @{image,stream,invalidObj,font,discard,flatten,total: NSNumber(字节)}；失败抛 error。
+- (nullable NSDictionary *)auditCompress:(ArkoCompressOptions *)options error:(NSError **)error
+    NS_SWIFT_NAME(auditCompress(options:));
+/// 执行压缩（就地修改，保存时写回）。progress 0~1；isCancelled 返回 YES 取消。成功返回审计字典；取消/失败抛 error。
+- (nullable NSDictionary *)optimizeCompress:(ArkoCompressOptions *)options
+                                   progress:(nullable void (^)(float))progress
+                                 isCancelled:(nullable BOOL (^)(void))isCancelled
+                                      error:(NSError **)error
+    NS_SWIFT_NAME(optimizeCompress(options:progress:isCancelled:));
 
 // 页面组织（PPO）：每次操作前后会通过 ppoDelegate 发通知，内部重建页缓存
 - (void)insertBlankPageAt:(NSInteger)index width:(CGFloat)width height:(CGFloat)height;
