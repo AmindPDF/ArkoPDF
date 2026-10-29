@@ -254,8 +254,8 @@ class MeasureAnnotHandler: GraphicAnnotHandler {
                            points: points.map { NSValue(point: $0) },
                            color: color,
                            opacity: opacity,
-                           borderWidth: borderWidth)
-        page.setMeasureType(Int32(measureType), atIndex: page.annotCount - 1)
+                           borderWidth: Int32(borderWidth))
+        page.setMeasureType(Int32(measureType), at: page.annotCount - 1)
     }
 }
 
@@ -285,7 +285,7 @@ class FreeTextAnnotHandler: GraphicAnnotHandler {
 
     func apply(rect: CGRect, target: CGPoint?, on page: ArkoPage, color: UInt32, opacity: Float) {
         page.addRectAnnot(ofType: annotType, inRect: rect, color: color, opacity: opacity, contents: "")
-        page.setFreeTextType(Int32(freeTextType), atIndex: page.annotCount - 1)
+        page.setFreeTextType(Int32(freeTextType), at: page.annotCount - 1)
     }
 }
 
@@ -302,7 +302,7 @@ final class CalloutHandler: FreeTextAnnotHandler {
         super.apply(rect: rect, target: target, on: page, color: color, opacity: opacity)
         // 引出线目标点：优先用传入的 target，否则默认在文本框下方 24pt 处。
         let t = target ?? CGPoint(x: rect.midX, y: rect.minY - 24)
-        page.setCalloutPointX(t.x, y: t.y, atIndex: page.annotCount - 1)
+        page.setCalloutPointX(t.x, y: t.y, at: page.annotCount - 1)
     }
 }
 
