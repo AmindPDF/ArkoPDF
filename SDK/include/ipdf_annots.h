@@ -769,6 +769,24 @@ public:
 	virtual void SetBorderStyle(int style) = 0;
 
 	/**
+	 * @brief 测量标注类型：0=非测量 1=距离(RulerDimension) 2=周长(PerimeterDimension) 3=面积(AreaDimension)。
+	 */
+	virtual void SetMeasureType(int type) = 0;
+	virtual int GetMeasureType() = 0;
+
+	/**
+	 * @brief FreeText 变体：0=Textbox 1=Typewriter 2=Callout。存储到 /IT。
+	 */
+	virtual void SetFreeTextType(int type) = 0;
+	virtual int GetFreeTextType() = 0;
+
+	/**
+	 * @brief Callout 引出线目标点（页面坐标）。
+	 */
+	virtual void SetCalloutPoint(float x, float y) = 0;
+	virtual int GetCalloutPoint(float& x, float& y) = 0;
+
+	/**
 	 * @brief Get parent annotation.
 	 *
 	 * @return The parent annotation.

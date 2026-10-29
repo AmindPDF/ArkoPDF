@@ -601,6 +601,70 @@
     }
 }
 
+- (void)setMeasureType:(int)type atIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    if (annot) {
+        annot->SetMeasureType(type);
+    }
+}
+
+- (int)measureTypeAtIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return 0;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    return annot ? annot->GetMeasureType() : 0;
+}
+
+- (void)setFreeTextType:(int)type atIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    if (annot) {
+        annot->SetFreeTextType(type);
+    }
+}
+
+- (int)freeTextTypeAtIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return 0;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    return annot ? annot->GetFreeTextType() : 0;
+}
+
+- (void)setCalloutPointX:(CGFloat)x y:(CGFloat)y atIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    if (annot) {
+        annot->SetCalloutPoint((float)x, (float)y);
+    }
+}
+
+- (CGPoint)calloutPointAtIndex:(NSInteger)index {
+    IPDF_AnnotList *annots = [self sdkAnnotList];
+    if (!annots || index < 0 || index >= annots->Count()) {
+        return CGPointZero;
+    }
+    IPDF_Annot *annot = annots->GetAnnot((int)index);
+    float x = 0, y = 0;
+    if (annot) {
+        annot->GetCalloutPoint(x, y);
+    }
+    return CGPointMake(x, y);
+}
+
 - (unsigned long long)annotHandlerAtIndex:(NSInteger)index {
     IPDF_AnnotList *annots = [self sdkAnnotList];
     if (!annots || index < 0 || index >= annots->Count()) {

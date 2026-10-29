@@ -99,6 +99,16 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setAnnotColor:(unsigned int)color atIndex:(NSInteger)index;
 - (void)setAnnotOpacity:(float)opacity atIndex:(NSInteger)index;
 
+// 测量标注：0=非测量 1=距离(RulerDimension) 2=周长(PerimeterDimension) 3=面积(AreaDimension)
+- (void)setMeasureType:(int)type atIndex:(NSInteger)index;
+- (int)measureTypeAtIndex:(NSInteger)index;
+// FreeText 变体：0=Textbox 1=Typewriter 2=Callout
+- (void)setFreeTextType:(int)type atIndex:(NSInteger)index;
+- (int)freeTextTypeAtIndex:(NSInteger)index;
+// Callout 引出线目标点（页面坐标）
+- (void)setCalloutPointX:(CGFloat)x y:(CGFloat)y atIndex:(NSInteger)index;
+- (CGPoint)calloutPointAtIndex:(NSInteger)index;
+
 // 标注句柄（撤销/重做用：void* 以 64 位整数传递，删除后可 AddAnnotByHandler 重插入）
 - (unsigned long long)annotHandlerAtIndex:(NSInteger)index;
 - (void)removeAnnotByHandler:(unsigned long long)handler;
