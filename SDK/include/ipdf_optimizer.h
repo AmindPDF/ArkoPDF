@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "ipdf_base.h"
 
 #ifndef PDSDKEXPORT
@@ -19,7 +19,8 @@ class IPDF_Document;
 /**
  * 图片优化参数。
  * 彩色/灰度走 JPEG；单色走 CCITT G3/G4。
- * 压缩链路：CPDF_ImageObject 解码（LoadDIBSource，可降采样）→ 编码 → CPDF_Image::SetImage 写回。
+ * 压缩链路：CPDF_ImageObject 解码（LoadDIBSource，可降采样）→ 编码
+ * → 写回流数据与字典（JPEG=DCTDecode，单色=CCITTFaxDecode）。
  */
 typedef struct _PDSDK_ImageOptimizeParam {
 	int		compressionType;		/* 彩色/灰度：RETAIN/JPEG（+JBIG2/JPEG2000 预留） */
