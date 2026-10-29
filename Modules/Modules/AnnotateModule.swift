@@ -24,11 +24,11 @@ final class AnnotateModule: EditorModule {
 
         // 测量
         let distance = MeasureDragTool(handler: DistanceMeasureHandler(), id: "tool.measure.distance", displayName: "距离", icon: "ruler")
-        let perimeter = MeasurePolygonTool(handler: PerimeterMeasureHandler(), draftType: .polyline, id: "tool.measure.perimeter", displayName: "周长", icon: "point.topleft.down.curvedto.point.bottomright.up")
+        let perimeter = MeasurePolygonTool(handler: PerimeterMeasureHandler(), draftType: .polyline, id: "tool.measure.perimeter", displayName: "周长", icon: "sum")
         let area = MeasurePolygonTool(handler: AreaMeasureHandler(), draftType: .polygon, id: "tool.measure.area", displayName: "面积", icon: "square.dashed")
 
         // FreeText 变体
-        let textbox = RectAnnotTool(handler: TextboxHandler(), id: "tool.freetext.textbox", displayName: "文本框", icon: "textbox")
+        let textbox = RectAnnotTool(handler: TextboxHandler(), id: "tool.freetext.textbox", displayName: "文本框", icon: "textformat")
         let typewriter = RectAnnotTool(handler: TypeWriterHandler(), id: "tool.freetext.typewriter", displayName: "打字机", icon: "keyboard")
         let callout = CalloutTool(handler: CalloutHandler())
 

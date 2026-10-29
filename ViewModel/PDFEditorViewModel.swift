@@ -21,12 +21,13 @@ struct AnnotationItem: Identifiable {
     let pageIndex: Int
     let annotIndex: Int
     let type: Int          // ANNOT_TYPE 原始值
+    let freetextType: Int  // FreeText 变体：0=文本框 1=打字机 2=标注框（非 FreeText 恒为 0）
     let color: MarkupColor
     let opacity: Float
     let rect: CGRect
 
-    var typeName: String { AnnotKind.name(forType: type) }
-    var typeIcon: String { AnnotKind.icon(forType: type) }
+    var typeName: String { AnnotKind.name(forType: type, freetextType: freetextType) }
+    var typeIcon: String { AnnotKind.icon(forType: type, freetextType: freetextType) }
 
     var id: String { "\(pageIndex)-\(annotIndex)" }
     var pageLabel: String { "第 \(pageIndex + 1) 页" }
@@ -244,7 +245,9 @@ final class PDFEditorViewModel: NSObject, ObservableObject, ToolContext, EditCon
                       let opacityNum = info["opacity"] as? NSNumber,
                       let rectValue = info["rect"] as? NSValue else { continue }
                 let color = MarkupColor.from(sdkColor: colorNum.uint32Value)
+                let freetextType = (info["freetextType"] as? NSNumber)?.intValue ?? 0
                 items.append(AnnotationItem(pageIndex: p, annotIndex: a, type: typeNum.intValue,
+                                            freetextType: freetextType,
                                             color: color, opacity: opacityNum.floatValue,
                                             rect: rectValue.rectValue))
             }

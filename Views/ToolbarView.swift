@@ -75,23 +75,27 @@ private struct ToolPicker: View {
     @EnvironmentObject var vm: PDFEditorViewModel
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(vm.activeModule?.tools ?? [], id: \.id) { tool in
-                Button {
-                    vm.selectTool(tool)
-                } label: {
-                    Image(systemName: tool.icon)
-                        .frame(width: 22, height: 22)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(vm.activeModule?.tools ?? [], id: \.id) { tool in
+                    Button {
+                        vm.selectTool(tool)
+                    } label: {
+                        Image(systemName: tool.icon)
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(vm.activeToolID == tool.id ? Color.accentColor.opacity(0.3) : Color.clear)
+                    )
+                    .help(tool.displayName)
                 }
-                .buttonStyle(.plain)
-                .padding(5)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(vm.activeToolID == tool.id ? Color.accentColor.opacity(0.3) : Color.clear)
-                )
-                .help(tool.displayName)
             }
+            .padding(.vertical, 2)
         }
+        .frame(maxWidth: .infinity)
     }
 }
 

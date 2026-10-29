@@ -82,11 +82,17 @@ struct AnnotEvent {
 
 /// 由 ANNOT_TYPE 原始值取显示名/图标（覆盖文本标记、图形、便签、FreeText/图标等所有类型）。
 enum AnnotKind {
-    static func name(forType t: Int) -> String {
+    static func name(forType t: Int, freetextType: Int = 0) -> String {
         if let m = MarkupType(rawValue: t) { return m.displayName }
         if let s = ShapeType(rawValue: t) { return s.displayName }
         if t == 1 { return "便签" }  // ANNOT_TYPE_TEXT
-        if t == 3 { return "文本" }  // ANNOT_TYPE_FREETEXT
+        if t == 3 {                  // ANNOT_TYPE_FREETEXT：按 /IT 变体细分
+            switch freetextType {
+            case 1: return "打字机"
+            case 2: return "标注框"
+            default: return "文本框"
+            }
+        }
         if t == 15 { return "图章" } // ANNOT_TYPE_STAMP
         if t == 17 { return "附件" } // ANNOT_TYPE_FILEATTACHMENT
         if t == 18 { return "音频" } // ANNOT_TYPE_SOUND
@@ -94,11 +100,17 @@ enum AnnotKind {
         return "标注"
     }
 
-    static func icon(forType t: Int) -> String {
+    static func icon(forType t: Int, freetextType: Int = 0) -> String {
         if let m = MarkupType(rawValue: t) { return m.icon }
         if let s = ShapeType(rawValue: t) { return s.icon }
         if t == 1 { return "note.text" }
-        if t == 3 { return "textbox" }
+        if t == 3 {
+            switch freetextType {
+            case 1: return "keyboard"
+            case 2: return "text.bubble"
+            default: return "textformat"
+            }
+        }
         if t == 15 { return "checkmark.seal" }
         if t == 17 { return "paperclip" }
         if t == 18 { return "speaker.wave.2" }

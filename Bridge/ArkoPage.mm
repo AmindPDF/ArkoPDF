@@ -578,6 +578,7 @@
         @"color": @(color),
         @"opacity": @(annot->GetOpacity()),
         @"rect": [NSValue valueWithRect:rect],
+        @"freetextType": @(annot->GetFreeTextType()),
     };
 }
 
